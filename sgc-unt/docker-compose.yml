@@ -1,0 +1,65 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: sgc_postgres
+    environment:
+      POSTGRES_DB: sgc_unt
+      POSTGRES_USER: sgc_admin
+      POSTGRES_PASSWORD: unt_sgc_2024
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - sgc_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sgc_admin -d sgc_unt"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sgc_backend
+    environment:
+      DATABASE_URL: postgresql://sgc_admin:unt_sgc_2024@postgres:5432/sgc_unt
+      JWT_SECRET: unt_jwt_secret_key_2024_sgc_ultra_secure
+      PORT: 3001
+      FRONTEND_URL: http://localhost:3000
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sgc_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sgc_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      NODE_ENV: production
+    depends_on:
+      - backend
+    networks:
+      - sgc_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  sgc_network:
+    driver: bridge
