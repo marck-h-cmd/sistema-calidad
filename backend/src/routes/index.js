@@ -49,6 +49,11 @@ r.post('/factores', verificarToken, acr.crearFactor);
 r.get('/autoevaluaciones', verificarToken, acr.listarAutoevaluaciones);
 r.post('/autoevaluaciones', verificarToken, acr.crearAutoevaluacion);
 r.post('/evaluaciones-criterio', verificarToken, acr.evaluarCriterio);
+r.get('/certificaciones', verificarToken, acr.listarCertificaciones);
+r.post('/certificaciones', verificarToken, acr.crearCertificacion);
+r.get('/certificaciones/:id/requisitos', verificarToken, acr.listarRequisitos);
+r.post('/requisitos', verificarToken, acr.crearRequisito);
+r.patch('/requisitos/:id', verificarToken, acr.actualizarRequisito);
 
 // AUDITORIAS
 r.get('/reportes/auditorias', verificarToken, aud.reporte);
@@ -58,6 +63,10 @@ r.patch('/planes-auditoria/:id', verificarToken, aud.actualizarPlan);
 r.get('/hallazgos', verificarToken, aud.listarHallazgos);
 r.post('/hallazgos', verificarToken, aud.crearHallazgo);
 r.patch('/hallazgos/:id', verificarToken, aud.actualizarHallazgo);
+r.get('/auditorias', verificarToken, aud.listarAuditorias);
+r.post('/auditorias', verificarToken, aud.crearAuditoriaPlan);
+r.get('/auditorias/:id/hallazgos', verificarToken, aud.listarHallazgosDePlan);
+r.get('/programas', verificarToken, aud.listarProgramas);
 
 // CAPAS
 r.get('/reportes/capas', verificarToken, capa.reporte);
@@ -75,6 +84,7 @@ r.post('/mitigaciones', verificarToken, riesgo.crearMitigacion);
 
 // INDICADORES
 r.get('/reportes/indicadores', verificarToken, ind.reporte);
+r.get('/reportes/indicadores/excel', verificarToken, ind.exportarExcel);
 r.get('/indicadores', verificarToken, ind.listar);
 r.post('/indicadores', verificarToken, ind.crear);
 r.get('/indicadores/:indicador_id/mediciones', verificarToken, ind.listarMediciones);

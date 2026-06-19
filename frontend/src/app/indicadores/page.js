@@ -3,12 +3,24 @@ import { useState, useEffect } from 'react';
 import ProtectedLayout from '@/components/Layout/ProtectedLayout';
 import { useTheme } from 'next-themes';
 import api from '@/lib/api';
-import { X, Download, Plus } from 'lucide-react';
+import { X, Download, Plus, TrendingUp, CheckCircle, BarChart2, Activity } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Legend
+  LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Legend
 } from 'recharts';
 
-const cumplColor = (c) => { if (c == null) return 'badge-gray'; if (c >= 95) return 'badge-green'; if (c >= 75) return 'badge-yellow'; return 'badge-red'; };
+const cumplColor = (c) => { 
+  if (c == null) return 'badge-gray'; 
+  if (c >= 95) return 'badge-green'; 
+  if (c >= 75) return 'badge-yellow'; 
+  return 'badge-red'; 
+};
+
+const cumplTextClass = (c) => {
+  if (c == null) return 'text-slate-400 dark:text-slate-500';
+  if (c >= 95) return 'text-emerald-600 dark:text-emerald-400 font-bold';
+  if (c >= 75) return 'text-amber-600 dark:text-amber-400 font-bold';
+  return 'text-rose-600 dark:text-rose-400 font-bold';
+};
 
 function Modal({ title, onClose, children }) {
   return (
@@ -33,7 +45,6 @@ export default function IndicadoresPage() {
   const [mediciones, setMediciones]   = useState([]);
   const [procesos, setProcesos]       = useState([]);
   const [sel, setSel]                 = useState(null);
-  const [tab, setTab]                 = useState('lista');
   const [modal, setModal]             = useState(null);
   const [form, setForm]               = useState({});
   const [medForm, setMedForm]         = useState({ periodo:'', valor_real:'', valor_esperado:'', analisis_tendencia:'' });
@@ -45,21 +56,36 @@ export default function IndicadoresPage() {
   const cargar = async () => {
     try {
       const [i, p] = await Promise.all([api.get('/indicadores'), api.get('/procesos')]);
-      setIndicadores(i.data); setProcesos(p.data);
+      setIndicadores(i.data); 
+      setProcesos(p.data);
+      // Select the first indicator by default if none selected yet
+      if (i.data.length > 0 && !sel) {
+        verMediciones(i.data[0]);
+      }
     } catch {}
   };
 
   const verMediciones = async (ind) => {
-    setSel(ind); setTab('grafico');
-    try { const { data } = await api.get(`/indicadores/${ind.id}/mediciones`); setMediciones(data); }
-    catch { setMediciones([]); }
+    setSel(ind);
+    try { 
+      const { data } = await api.get(`/indicadores/${ind.id}/mediciones`); 
+      setMediciones(data); 
+    } catch { 
+      setMediciones([]); 
+    }
   };
 
   const guardarIndicador = async (e) => {
     e.preventDefault(); setError(''); setSaving(true);
-    try { await api.post('/indicadores', form); setModal(null); cargar(); }
-    catch (err) { setError(err.response?.data?.error || 'Error'); }
-    finally { setSaving(false); }
+    try { 
+      await api.post('/indicadores', form); 
+      setModal(null); 
+      cargar(); 
+    } catch (err) { 
+      setError(err.response?.data?.error || 'Error'); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const guardarMedicion = async (e) => {
@@ -69,8 +95,12 @@ export default function IndicadoresPage() {
       setModal(null);
       setMedForm({ periodo:'', valor_real:'', valor_esperado:'', analisis_tendencia:'' });
       verMediciones(sel);
-    } catch (err) { alert(err.response?.data?.error || 'Error'); }
-    finally { setSaving(false); }
+      cargar(); // Reload indicators list to update latest values
+    } catch (err) { 
+      alert(err.response?.data?.error || 'Error'); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const descargarPDF = async () => {
@@ -80,26 +110,54 @@ export default function IndicadoresPage() {
     } catch {}
   };
 
+  const descargarExcel = async () => {
+    try {
+      const res = await api.get('/reportes/indicadores/excel', { responseType:'blob' });
+      Object.assign(document.createElement('a'), { href: URL.createObjectURL(res.data), download:'indicadores.xlsx' }).click();
+    } catch {}
+  };
+
+  // KPI calculations
+  const totalIndicadores = indicadores.length;
+  const activosIndicadores = indicadores.filter(i => i.estado === 'activo').length;
+  const cumplimientosValidos = indicadores
+    .map(i => i.ultimo_valor != null && i.meta ? (i.ultimo_valor / i.meta) * 100 : null)
+    .filter(c => c != null);
+  const promedioCumplimiento = cumplimientosValidos.length > 0 
+    ? (cumplimientosValidos.reduce((a, b) => a + parseFloat(b), 0) / cumplimientosValidos.length).toFixed(1)
+    : null;
+
+  // General chart data
+  const generalChartData = indicadores.map(i => {
+    const cumpl = i.ultimo_valor != null && i.meta ? parseFloat(((i.ultimo_valor / i.meta) * 100).toFixed(1)) : 0;
+    return {
+      codigo: i.codigo,
+      nombre: i.nombre,
+      cumplimiento: cumpl
+    };
+  }).filter(d => d.cumplimiento > 0).slice(0, 10);
+
   return (
     <ProtectedLayout>
       {/* Header */}
       <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="page-title">Indicadores de Gestión</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{indicadores.length} indicadores configurados</p>
+            <h1 className="page-title flex items-center gap-2">
+              <Activity className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              Indicadores de Gestión
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{totalIndicadores} indicadores configurados en el sistema</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2.5">
+            <button className="btn-secondary flex items-center gap-2 border-emerald-200 hover:bg-emerald-50/50 text-emerald-700 dark:text-emerald-400 dark:border-emerald-900/40" onClick={descargarExcel}>
+              <Download className="w-4 h-4" />
+              Excel
+            </button>
             <button className="btn-secondary flex items-center gap-2" onClick={descargarPDF}>
               <Download className="w-4 h-4" />
               PDF
             </button>
-            {sel && tab === 'grafico' && (
-              <button className="btn-secondary flex items-center gap-2" onClick={() => { setMedForm({ periodo:'', valor_real:'', valor_esperado:'', analisis_tendencia:'' }); setModal('medicion'); }}>
-                <Plus className="w-4 h-4" />
-                Medición
-              </button>
-            )}
             <button className="btn-primary flex items-center gap-2" onClick={() => {
               setForm({ codigo:'', nombre:'', descripcion:'', tipo:'eficacia', meta:'', unidad_medida:'%', frecuencia_medicion:'mensual', proceso_id:'' });
               setError(''); setModal('indicador');
@@ -112,135 +170,228 @@ export default function IndicadoresPage() {
       </div>
 
       <div className="p-6 md:p-8 animate-in space-y-6">
-        {/* Tabs */}
-        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit">
-          {[['lista','Lista de Indicadores'],['grafico', sel ? `Gráfico: ${sel.nombre.substring(0,20)}` : 'Gráfico']].map(([k,l]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab===k?'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-200':'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-              {l}
-            </button>
-          ))}
+        
+        {/* KPI Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="card p-5 flex items-center justify-between border-l-4 border-l-blue-600">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Indicadores</p>
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mt-1">{totalIndicadores}</h3>
+            </div>
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl">
+              <Activity className="w-6 h-6" />
+            </div>
+          </div>
+          <div className="card p-5 flex items-center justify-between border-l-4 border-l-emerald-500">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Cumplimiento Promedio</p>
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mt-1">
+                {promedioCumplimiento ? `${promedioCumplimiento}%` : '—'}
+              </h3>
+            </div>
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+          </div>
+          <div className="card p-5 flex items-center justify-between border-l-4 border-l-amber-500">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Indicadores Activos</p>
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mt-1">{activosIndicadores}</h3>
+            </div>
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+          </div>
         </div>
 
-        {/* Lista */}
-        {tab === 'lista' && (
-          <div className="card overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
-                <tr>
-                  <th className="table-header">Código</th>
-                  <th className="table-header">Nombre</th>
-                  <th className="table-header">Tipo</th>
-                  <th className="table-header">Meta</th>
-                  <th className="table-header">Último Valor</th>
-                  <th className="table-header">Cumplimiento</th>
-                  <th className="table-header">Ver</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                {indicadores.length === 0 && <tr><td colSpan={7} className="py-14 text-center text-slate-400 dark:text-slate-500 text-sm">No hay indicadores registrados</td></tr>}
-                {indicadores.map(i => {
-                  const cumpl = i.ultimo_valor != null && i.meta ? ((i.ultimo_valor / i.meta) * 100).toFixed(1) : null;
-                  return (
-                    <tr key={i.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors group">
-                      <td className="table-cell"><span className="font-mono text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{i.codigo}</span></td>
-                      <td className="table-cell">
-                        <p className="font-medium text-slate-800 dark:text-slate-200">{i.nombre}</p>
-                        <p className="text-xs text-slate-400 dark:text-slate-500">{i.proceso_nombre || 'Sin proceso'}</p>
-                      </td>
-                      <td className="table-cell capitalize text-slate-500 dark:text-slate-400 text-xs">{i.tipo}</td>
-                      <td className="table-cell text-slate-600 dark:text-slate-300">{i.meta != null ? `${i.meta} ${i.unidad_medida || ''}` : '—'}</td>
-                      <td className="table-cell">{i.ultimo_valor != null ? <span className="font-medium">{i.ultimo_valor} {i.unidad_medida}</span> : <span className="text-slate-400 dark:text-slate-500">Sin datos</span>}</td>
-                      <td className="table-cell">{cumpl != null ? <span className={`badge ${cumplColor(parseFloat(cumpl))}`}>{cumpl}%</span> : <span className="text-slate-400 dark:text-slate-500 text-xs">—</span>}</td>
-                      <td className="table-cell">
-                        <button onClick={() => verMediciones(i)} className="btn-ghost text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 px-2 py-1">Ver gráfico →</button>
+        {/* Split Screen Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Left Column: Interactive Table */}
+          <div className="lg:col-span-7 card overflow-hidden flex flex-col justify-between">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                  <tr>
+                    <th className="table-header">Código</th>
+                    <th className="table-header">Nombre</th>
+                    <th className="table-header">Meta</th>
+                    <th className="table-header">Último Valor</th>
+                    <th className="table-header">Cumplimiento</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                  {indicadores.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-14 text-center text-slate-400 dark:text-slate-500 text-sm">
+                        No hay indicadores registrados
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Gráfico */}
-        {tab === 'grafico' && !sel && (
-          <div className="card p-16 text-center text-slate-400 dark:text-slate-500 text-sm">
-            Selecciona un indicador desde la lista para ver su histórico
-          </div>
-        )}
-
-        {tab === 'grafico' && sel && (
-          <div className="space-y-6">
-            {/* Info card */}
-            <div className="card p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="font-mono text-xs text-slate-400 dark:text-slate-500">{sel.codigo}</span>
-                  <h2 className="section-title mt-1 text-lg">{sel.nombre}</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Meta: <span className="font-semibold text-slate-700 dark:text-slate-300">{sel.meta} {sel.unidad_medida}</span> · Frecuencia: {sel.frecuencia_medicion}</p>
-                </div>
-                <span className={`badge ${sel.estado === 'activo' ? 'badge-green' : 'badge-gray'}`}>{sel.estado}</span>
-              </div>
-            </div>
-
-            {/* Chart */}
-            <div className="card p-6">
-              <h3 className="section-title mb-6">Histórico de Mediciones</h3>
-              {mediciones.length === 0 ? (
-                <div className="h-64 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-3">
-                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Sin mediciones. Usa "+ Medición" para agregar datos.</p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={mediciones} margin={{ left:-10, right:10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#334155" : "#e2e8f0"} vertical={false} />
-                    <XAxis dataKey="periodo" tick={{fontSize:11,fill:isDark ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} />
-                    <YAxis tick={{fontSize:11,fill:isDark ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} />
-                    <Tooltip />
-                    <Legend />
-                    {sel.meta && (
-                      <ReferenceLine y={parseFloat(sel.meta)} stroke="#10b981" strokeDasharray="5 5"
-                        label={{value:`Meta: ${sel.meta}`, position:'right', fontSize:11, fill:'#10b981'}} />
-                    )}
-                    <Line type="monotone" dataKey="valor_real" stroke="#2563eb" strokeWidth={2.5} dot={{r:4,fill:'#2563eb'}} name="Valor Real" />
-                    <Line type="monotone" dataKey="valor_esperado" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4 4" dot={false} name="Esperado" />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            {/* Table */}
-            {mediciones.length > 0 && (
-              <div className="card overflow-hidden">
-                <div className="px-4 py-3.5 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">Detalle de Mediciones</span>
-                </div>
-                <table className="w-full">
-                  <thead><tr>
-                    <th className="table-header">Periodo</th>
-                    <th className="table-header">Valor Real</th>
-                    <th className="table-header">Esperado</th>
-                    <th className="table-header">Cumplimiento</th>
-                    <th className="table-header">Análisis</th>
-                  </tr></thead>
-                  <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                    {mediciones.map(m => (
-                      <tr key={m.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                        <td className="table-cell font-medium">{m.periodo}</td>
-                        <td className="table-cell font-semibold text-blue-600 dark:text-blue-400">{m.valor_real} {sel.unidad_medida}</td>
-                        <td className="table-cell text-slate-400 dark:text-slate-500">{m.valor_esperado || '—'}</td>
-                        <td className="table-cell">{m.cumplimiento != null ? <span className={`badge ${cumplColor(parseFloat(m.cumplimiento))}`}>{m.cumplimiento}%</span> : '—'}</td>
-                        <td className="table-cell text-slate-400 dark:text-slate-500 text-xs max-w-xs truncate">{m.analisis_tendencia || '—'}</td>
+                  )}
+                  {indicadores.map(i => {
+                    const cumpl = i.ultimo_valor != null && i.meta ? ((i.ultimo_valor / i.meta) * 100).toFixed(1) : null;
+                    const isSelected = sel?.id === i.id;
+                    return (
+                      <tr key={i.id} 
+                        onClick={() => verMediciones(i)}
+                        className={`cursor-pointer hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors ${isSelected ? 'bg-blue-50/40 dark:bg-blue-950/20 border-l-2 border-l-blue-600' : ''}`}>
+                        <td className="table-cell">
+                          <span className="font-mono text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{i.codigo}</span>
+                        </td>
+                        <td className="table-cell">
+                          <p className="font-medium text-slate-800 dark:text-slate-200">{i.nombre}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500">{i.proceso_nombre || 'Sin proceso'}</p>
+                        </td>
+                        <td className="table-cell text-slate-600 dark:text-slate-300 text-xs">{i.meta != null ? `${i.meta} ${i.unidad_medida || ''}` : '—'}</td>
+                        <td className="table-cell text-xs font-semibold">{i.ultimo_valor != null ? `${i.ultimo_valor} ${i.unidad_medida}` : <span className="text-slate-400 dark:text-slate-500 font-normal">Sin datos</span>}</td>
+                        <td className="table-cell">{cumpl != null ? <span className={`badge ${cumplColor(parseFloat(cumpl))}`}>{cumpl}%</span> : <span className="text-slate-400 dark:text-slate-500 text-xs">—</span>}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {indicadores.length > 0 && (
+              <div className="px-4 py-3 bg-slate-50/30 dark:bg-slate-800/10 border-t border-slate-100 dark:border-slate-700/60 text-right">
+                <span className="text-xs text-slate-400 dark:text-slate-500">Haz clic en un indicador para ver su gráfico e histórico.</span>
               </div>
             )}
           </div>
-        )}
+
+          {/* Right Column: Persistent Chart & details panel */}
+          <div className="lg:col-span-5 flex flex-col gap-6">
+            
+            {/* Panel Header */}
+            {sel ? (
+              <>
+                {/* Specific Indicator details & LineChart */}
+                <div className="card p-6 space-y-6">
+                  <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                    <div>
+                      <span className="font-mono text-xs text-slate-400 dark:text-slate-500">{sel.codigo}</span>
+                      <h2 className="font-bold text-slate-800 dark:text-slate-200 text-base mt-0.5">{sel.nombre}</h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Meta: <span className="font-semibold text-slate-700 dark:text-slate-300">{sel.meta} {sel.unidad_medida}</span> · Frecuencia: {sel.frecuencia_medicion}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <span className={`badge ${sel.estado === 'activo' ? 'badge-green' : 'badge-gray'}`}>{sel.estado}</span>
+                      <button className="btn-secondary flex items-center gap-1 text-[11px] px-2.5 py-1" 
+                        onClick={() => { setMedForm({ periodo:'', valor_real:'', valor_esperado:'', analisis_tendencia:'' }); setModal('medicion'); }}>
+                        <Plus className="w-3.5 h-3.5" />
+                        Medición
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="section-title text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">Gráfico Histórico</h3>
+                    {mediciones.length === 0 ? (
+                      <div className="h-48 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-2">
+                        <TrendingUp className="w-8 h-8 opacity-40" />
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Aún no hay mediciones registradas para este indicador.</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={200}>
+                        <LineChart data={mediciones} margin={{ left:-20, right:5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#334155" : "#e2e8f0"} vertical={false} />
+                          <XAxis dataKey="periodo" tick={{fontSize:10,fill:isDark ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} />
+                          <YAxis tick={{fontSize:10,fill:isDark ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} />
+                          <Tooltip formatter={(value) => [`${value} ${sel.unidad_medida}`, '']} />
+                          {sel.meta && (
+                            <ReferenceLine y={parseFloat(sel.meta)} stroke="#10b981" strokeDasharray="5 5" />
+                          )}
+                          <Line type="monotone" dataKey="valor_real" stroke="#2563eb" strokeWidth={2.5} dot={{r:4,fill:'#2563eb'}} name="Valor Real" />
+                          <Line type="monotone" dataKey="valor_esperado" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4 4" dot={false} name="Esperado" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+
+                {/* Table for measurements list */}
+                {mediciones.length > 0 && (
+                  <div className="card overflow-hidden">
+                    <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">Historial de Mediciones</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">{mediciones.length} periodos</span>
+                    </div>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-slate-50/30 dark:bg-slate-800/20">
+                          <th className="table-header py-2">Periodo</th>
+                          <th className="table-header py-2 text-right">Real</th>
+                          <th className="table-header py-2 text-right">Esperado</th>
+                          <th className="table-header py-2 text-center">Cumplimiento</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                        {mediciones.map(m => (
+                          <tr key={m.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                            <td className="table-cell py-2 font-medium">{m.periodo}</td>
+                            <td className="table-cell py-2 text-right font-semibold text-blue-600 dark:text-blue-400">{m.valor_real} {sel.unidad_medida}</td>
+                            <td className="table-cell py-2 text-right text-slate-400 dark:text-slate-500">{m.valor_esperado || '—'}</td>
+                            <td className="table-cell py-2 text-center">
+                              {m.cumplimiento != null ? (
+                                <span className={`badge text-[9px] px-2 py-0.5 ${cumplColor(parseFloat(m.cumplimiento))}`}>
+                                  {m.cumplimiento}%
+                                </span>
+                              ) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* General stats / overview panel when no specific indicator selected */
+              <div className="card p-6 space-y-6">
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <h2 className="font-bold text-slate-800 dark:text-slate-200 text-base flex items-center gap-1.5">
+                    <BarChart2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    Resumen del Desempeño
+                  </h2>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Comparativa de cumplimiento de los principales indicadores</p>
+                </div>
+                {generalChartData.length === 0 ? (
+                  <div className="h-64 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-2">
+                    <BarChart2 className="w-12 h-12 opacity-30" />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Sin datos de cumplimiento. Registra mediciones primero.</p>
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={generalChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#334155" : "#e2e8f0"} vertical={false} />
+                        <XAxis dataKey="codigo" tick={{fontSize:9,fill:isDark ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} />
+                        <YAxis tick={{fontSize:9,fill:isDark ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} unit="%" />
+                        <Tooltip formatter={(value) => [`${value}%`, 'Cumplimiento']} />
+                        <Bar dataKey="cumplimiento" radius={[4, 4, 0, 0]}>
+                          {generalChartData.map((entry, idx) => {
+                            let color = '#ef4444';
+                            if (entry.cumplimiento >= 95) color = '#10b981';
+                            else if (entry.cumplimiento >= 75) color = '#f59e0b';
+                            return <Cell key={`cell-${idx}`} fill={color} />;
+                          })}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+                      <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2.5">Leyenda de Cumplimiento</h4>
+                      <div className="flex gap-4 text-xs">
+                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-emerald-500 rounded"></span> Excelencia (&ge;95%)</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-amber-500 rounded"></span> Aceptable (&ge;75%)</div>
+                        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-rose-500 rounded"></span> Crítico (&lt;75%)</div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Modal nuevo indicador */}
