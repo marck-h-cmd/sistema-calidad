@@ -11,6 +11,7 @@ export default function AuditoriasPage() {
   const [programas, setProgramas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [hallazgos, setHallazgos] = useState([]);
+  const [stats, setStats] = useState(null);
   const [auditoriaSel, setAuditoriaSel] = useState(null);
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({});
@@ -27,8 +28,15 @@ export default function AuditoriasPage() {
 
   const verHallazgos = async (a) => {
     setAuditoriaSel(a);
-    try { const { data } = await api.get(`/auditorias/${a.id}/hallazgos`); setHallazgos(data); }
-    catch { setHallazgos([]); }
+    try { 
+      const [hRes, sRes] = await Promise.all([
+        api.get(`/auditorias/${a.id}/hallazgos`),
+        api.get(`/planes-auditoria/${a.id}/estadisticas`)
+      ]);
+      setHallazgos(hRes.data);
+      setStats(sRes.data);
+    }
+    catch { setHallazgos([]); setStats(null); }
   };
 
   const guardarAuditoria = async (e) => {
@@ -108,6 +116,48 @@ export default function AuditoriasPage() {
                 </button>
               )}
             </div>
+            {auditoriaSel && (
+              <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-700 space-y-4">
+                {/* Stepper */}
+                <div className="flex items-center justify-between relative">
+                  <div className="absolute left-0 top-1/2 w-full h-0.5 bg-slate-200 dark:bg-slate-700 -z-10 -translate-y-1/2"></div>
+                  {['planificado', 'en_ejecucion', 'ejecutado', 'cerrado'].map((s, i) => {
+                    const idxCurrent = ['planificado', 'en_ejecucion', 'ejecutado', 'cerrado'].indexOf(auditoriaSel.estado);
+                    const isPast = i <= idxCurrent;
+                    return (
+                      <div key={s} className="flex flex-col items-center bg-white dark:bg-slate-900 px-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 ${isPast ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-400'}`}>
+                          {i + 1}
+                        </div>
+                        <span className={`text-[10px] mt-1 font-medium uppercase ${isPast ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>{s.replace('_', ' ')}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Stats */}
+                {stats && (
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded-xl text-center">
+                      <p className="text-xl font-bold text-slate-800 dark:text-slate-200">{stats.total}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">Total Hallazgos</p>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded-xl text-center border border-red-100 dark:border-red-800/30">
+                      <p className="text-xl font-bold text-red-600 dark:text-red-400">{stats.porGravedad?.critica || 0}</p>
+                      <p className="text-[10px] text-red-500 uppercase font-semibold">Críticos</p>
+                    </div>
+                    <div className="bg-orange-50 dark:bg-orange-900/20 p-2 rounded-xl text-center border border-orange-100 dark:border-orange-800/30">
+                      <p className="text-xl font-bold text-orange-600 dark:text-orange-400">{stats.porGravedad?.alta || 0}</p>
+                      <p className="text-[10px] text-orange-500 uppercase font-semibold">Altos</p>
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-xl text-center border border-blue-100 dark:border-blue-800/30">
+                      <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{(stats.porGravedad?.media || 0) + (stats.porGravedad?.baja || 0)}</p>
+                      <p className="text-[10px] text-blue-500 uppercase font-semibold">Medio / Bajo</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="divide-y divide-slate-50 dark:divide-slate-700">
               {!auditoriaSel && <p className="p-8 text-center text-slate-400 dark:text-slate-500 text-sm">Haz clic en una auditoría para ver sus hallazgos</p>}
               {auditoriaSel && hallazgos.length === 0 && <p className="p-8 text-center text-slate-400 dark:text-slate-500 text-sm">No hay hallazgos registrados</p>}
@@ -125,6 +175,12 @@ export default function AuditoriasPage() {
                   <p className="text-sm text-slate-800 dark:text-slate-200">{h.descripcion}</p>
                   {h.area && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Área: {h.area}</p>}
                   {h.recomendacion && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Recomendación: {h.recomendacion}</p>}
+                  {h.tipo === 'desviacion_mayor' && (
+                    <button className="mt-3 text-xs bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 px-3 py-1.5 rounded-lg font-medium transition-colors"
+                      onClick={() => window.location.href = '/capas'}>
+                      Ver CAPA asociada
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

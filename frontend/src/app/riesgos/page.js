@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProtectedLayout from '@/components/Layout/ProtectedLayout';
 import api from '@/lib/api';
 import { X, Download, Plus } from 'lucide-react';
@@ -23,8 +23,11 @@ export default function RiesgosPage() {
   const [riesgos, setRiesgos] = useState([]);
   const [procesos, setProcesos] = useState([]);
   const [filtroNivel, setFiltroNivel] = useState('');
+  const [filtroCelda, setFiltroCelda] = useState(null); // {p, i}
   const [modal, setModal] = useState(false);
   const [mitigModal, setMitigModal] = useState(null);
+  const [riesgoExpandido, setRiesgoExpandido] = useState(null);
+  const [historial, setHistorial] = useState([]);
   const [form, setForm] = useState({});
   const [mitigForm, setMitigForm] = useState({ descripcion: '', acciones: '', fecha_inicio: '', fecha_fin: '' });
   const [error, setError] = useState('');
@@ -53,6 +56,19 @@ export default function RiesgosPage() {
     const r = riesgos.find(r => r.id === id);
     await api.patch(`/riesgos/${id}`, { estado, probabilidad: r.probabilidad, impacto: r.impacto });
     cargar();
+    if (riesgoExpandido === id) verHistorial(id); // refresh history
+  };
+
+  const verHistorial = async (id) => {
+    if (riesgoExpandido === id) {
+      setRiesgoExpandido(null);
+      return;
+    }
+    setRiesgoExpandido(id);
+    try {
+      const { data } = await api.get(`/riesgos/${id}/historial`);
+      setHistorial(data);
+    } catch { setHistorial([]); }
   };
 
   const guardarMitigacion = async (e) => {
@@ -69,7 +85,11 @@ export default function RiesgosPage() {
     Object.assign(document.createElement('a'), { href: URL.createObjectURL(res.data), download: 'riesgos.pdf' }).click();
   };
 
-  const riesgosFiltrados = filtroNivel ? riesgos.filter(r => r.nivel_riesgo === filtroNivel) : riesgos;
+  const riesgosFiltrados = riesgos.filter(r => {
+    if (filtroCelda) return r.probabilidad === filtroCelda.p && r.impacto === filtroCelda.i;
+    if (filtroNivel) return r.nivel_riesgo === filtroNivel;
+    return true;
+  });
 
   // Matriz stats
   const conteoNivel = ['critico', 'alto', 'medio', 'bajo'].map(n => ({
@@ -116,12 +136,48 @@ export default function RiesgosPage() {
           })}
         </div>
 
-        {/* Filtro nivel */}
-        {filtroNivel && (
+        {/* Matriz 5x5 */}
+        <div className="card p-6">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">Matriz de Riesgos</h2>
+          <div className="flex gap-4 items-end overflow-x-auto">
+            <div className="flex flex-col gap-1 pb-6 items-center">
+              <span className="text-xs font-semibold text-slate-500 transform -rotate-90 origin-center whitespace-nowrap w-4 h-24">Probabilidad</span>
+            </div>
+            <div className="flex flex-col">
+              <div className="grid grid-cols-5 gap-1 mb-1 border-l-2 border-b-2 border-slate-300 dark:border-slate-600">
+                {[5, 4, 3, 2, 1].map(p => (
+                  <div key={`row-${p}`} className="contents">
+                    {[1, 2, 3, 4, 5].map(i => {
+                      const count = riesgos.filter(r => r.probabilidad === p && r.impacto === i).length;
+                      const nivel = calcularNivel(p, i);
+                      const bg = nivel === 'critico' ? 'bg-red-500' : nivel === 'alto' ? 'bg-orange-500' : nivel === 'medio' ? 'bg-amber-400' : 'bg-emerald-400';
+                      const isSelected = filtroCelda?.p === p && filtroCelda?.i === i;
+                      return (
+                        <div key={`${p}-${i}`}
+                          onClick={() => setFiltroCelda(isSelected ? null : { p, i })}
+                          className={`w-12 h-12 md:w-16 md:h-16 flex flex-col items-center justify-center cursor-pointer hover:opacity-80 transition-all ${bg} ${isSelected ? 'ring-4 ring-blue-600 z-10' : ''}`}
+                          title={`Probabilidad: ${p}, Impacto: ${i}`}>
+                          {count > 0 && <span className="bg-white/90 text-slate-900 font-bold text-sm px-2 rounded-full shadow-sm">{count}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between w-full px-2 mt-2">
+                <span className="text-xs font-semibold text-slate-500 text-center w-full">Impacto</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filtro nivel/celda */}
+        {(filtroNivel || filtroCelda) && (
           <div className="mb-4 flex items-center gap-2">
-            <span className="text-sm text-slate-500 dark:text-slate-400">Mostrando nivel:</span>
-            <span className={`badge ${nivelConfig[filtroNivel]?.color}`}>{filtroNivel}</span>
-            <button onClick={() => setFiltroNivel('')} className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 underline">Limpiar filtro</button>
+            <span className="text-sm text-slate-500 dark:text-slate-400">Mostrando filtro:</span>
+            {filtroNivel && <span className={`badge ${nivelConfig[filtroNivel]?.color}`}>{filtroNivel}</span>}
+            {filtroCelda && <span className={`badge bg-blue-100 text-blue-700`}>Prob {filtroCelda.p} - Imp {filtroCelda.i}</span>}
+            <button onClick={() => { setFiltroNivel(''); setFiltroCelda(null); }} className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 underline">Limpiar filtro</button>
           </div>
         )}
 
@@ -148,8 +204,9 @@ export default function RiesgosPage() {
                 const nivel = r.nivel_riesgo || calcularNivel(r.probabilidad, r.impacto);
                 const cfg = nivelConfig[nivel] || nivelConfig.bajo;
                 return (
-                  <tr key={r.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="table-cell font-mono text-xs">{r.codigo}</td>
+                  <React.Fragment key={r.id}>
+                    <tr className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="table-cell font-mono text-xs">{r.codigo}</td>
                     <td className="table-cell">
                       <p className="font-medium text-slate-800 dark:text-slate-200">{r.nombre}</p>
                       {r.descripcion && <p className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-xs">{r.descripcion}</p>}
@@ -173,14 +230,44 @@ export default function RiesgosPage() {
                       </select>
                     </td>
                     <td className="table-cell">
-                      <button onClick={() => setMitigModal(r.id)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs font-medium">
-                        + Mitigación
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => verHistorial(r.id)} className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-medium">
+                          {riesgoExpandido === r.id ? 'Ocultar Historial' : 'Historial'}
+                        </button>
+                        <button onClick={() => setMitigModal(r.id)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs font-medium">
+                          + Mitigación
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
+                  {riesgoExpandido === r.id && (
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/20">
+                      <td colSpan={8} className="p-4">
+                        <div className="pl-4">
+                          <h4 className="text-xs font-semibold mb-3 text-slate-600 dark:text-slate-300">Historial de Cambios de Estado</h4>
+                          {historial.length === 0 ? (
+                            <p className="text-xs text-slate-400">No hay cambios registrados.</p>
+                          ) : (
+                            <div className="relative border-l-2 border-slate-200 dark:border-slate-700 ml-2 space-y-3">
+                              {historial.map((h, i) => (
+                                <div key={i} className="pl-4 relative">
+                                  <div className="absolute w-2.5 h-2.5 bg-slate-400 rounded-full -left-[6px] top-1 border-2 border-white dark:border-slate-900"></div>
+                                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                                    Cambió de <span className="font-semibold">{h.estado_anterior}</span> a <span className="font-semibold">{h.estado_nuevo}</span>
+                                  </p>
+                                  <p className="text-[10px] text-slate-400">Por: {h.cambiado_por_nombre} el {new Date(h.fecha_cambio).toLocaleString('es-PE')}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
           </table>
         </div>
 

@@ -102,20 +102,16 @@ export const crearHallazgo = async (req, res) => {
   try {
     const { plan_id, auditoria_id, tipo, descripcion, area_proceso_id, gravedad, severidad, area, recomendacion } = req.body;
     
-    // Soporte para ambos nombres: FE y BD original
     const finalPlanId = plan_id || auditoria_id;
     
-    // Mapeo de tipo
     let dbTipo = tipo;
     if (tipo === 'desviacion_mayor') dbTipo = 'no_conformidad';
     else if (tipo === 'desviacion_menor') dbTipo = 'observacion';
     else if (tipo === 'observacion') dbTipo = 'observacion';
     else if (tipo === 'mejora') dbTipo = 'oportunidad_mejora';
     
-    // Mapeo de severidad/gravedad
     const dbGravedad = gravedad || severidad || 'media';
     
-    // Empaquetar area y recomendacion dentro de descripcion
     let dbDescripcion = descripcion || '';
     if (area || recomendacion) {
       dbDescripcion = `${dbDescripcion.trim()}\nÁrea: ${area || ''}\nRecomendación: ${recomendacion || ''}`;
@@ -126,7 +122,20 @@ export const crearHallazgo = async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$6) RETURNING *`,
       [finalPlanId, dbTipo, dbDescripcion, area_proceso_id || null, dbGravedad, req.usuario.id]
     );
-    res.status(201).json(parseHallazgo(rows[0]));
+
+    const hallazgo = rows[0];
+
+    // Create CAPA if no_conformidad
+    if (dbTipo === 'no_conformidad') {
+      const capaCode = `CAPA-AUTO-${Date.now().toString().slice(-6)}`;
+      await query(
+        `INSERT INTO capas (codigo,tipo,hallazgo_id,descripcion,accion_propuesta,responsable_id,creado_por,modificado_por)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$7)`,
+        [capaCode, 'correctiva', hallazgo.id, 'Acción correctiva generada automáticamente por hallazgo: ' + hallazgo.descripcion.substring(0, 50), 'Definir acción', req.usuario.id, req.usuario.id]
+      );
+    }
+
+    res.status(201).json(parseHallazgo(hallazgo));
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
@@ -231,4 +240,37 @@ export const reporte = async (req, res) => {
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename=auditorias.pdf' });
     res.send(pdf);
   } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const estadisticasPlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows: hallazgos } = await query(
+      'SELECT tipo, gravedad FROM hallazgos WHERE plan_id=$1', [id]
+    );
+
+    const stats = {
+      total: hallazgos.length,
+      porTipo: {
+        no_conformidad: 0,
+        observacion: 0,
+        oportunidad_mejora: 0
+      },
+      porGravedad: {
+        critica: 0,
+        alta: 0,
+        media: 0,
+        baja: 0
+      }
+    };
+
+    hallazgos.forEach(h => {
+      if (stats.porTipo[h.tipo] !== undefined) stats.porTipo[h.tipo]++;
+      if (stats.porGravedad[h.gravedad] !== undefined) stats.porGravedad[h.gravedad]++;
+    });
+
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };

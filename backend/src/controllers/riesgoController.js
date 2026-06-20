@@ -36,13 +36,76 @@ export const actualizar = async (req, res) => {
   try {
     const { id } = req.params;
     const { estado, probabilidad, impacto } = req.body;
+    
+    // Get old state
+    const old = await query('SELECT estado FROM riesgos WHERE id=$1', [id]);
+    const estado_anterior = old.rows[0]?.estado;
+
     const { rows } = await query(
       `UPDATE riesgos SET estado=$1,probabilidad=$2,impacto=$3,modificado_por=$4 WHERE id=$5 RETURNING *`,
       [estado, probabilidad, impacto, req.usuario.id, id]
     );
     const r = rows[0];
+
+    // Create table and insert history
+    await query(`CREATE TABLE IF NOT EXISTS historial_riesgos (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      riesgo_id UUID REFERENCES riesgos(id) ON DELETE CASCADE,
+      estado_anterior VARCHAR(20),
+      estado_nuevo VARCHAR(20),
+      cambiado_por UUID,
+      fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    if (estado_anterior !== estado) {
+      await query(
+        `INSERT INTO historial_riesgos (riesgo_id, estado_anterior, estado_nuevo, cambiado_por) VALUES ($1,$2,$3,$4)`,
+        [id, estado_anterior, estado, req.usuario.id]
+      );
+    }
+
     res.json({ ...r, nivel_riesgo: nivelRiesgo(r.probabilidad, r.impacto) });
   } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const matriz = async (req, res) => {
+  try {
+    const { rows } = await query(`SELECT * FROM riesgos`);
+    const agrupados = rows.reduce((acc, r) => {
+      const key = `${r.probabilidad}-${r.impacto}`;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push({ ...r, nivel_riesgo: nivelRiesgo(r.probabilidad, r.impacto) });
+      return acc;
+    }, {});
+    res.json(agrupados);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarHistorial = async (req, res) => {
+  try {
+    const { riesgo_id } = req.params;
+    // ensure table exists
+    await query(`CREATE TABLE IF NOT EXISTS historial_riesgos (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      riesgo_id UUID REFERENCES riesgos(id) ON DELETE CASCADE,
+      estado_anterior VARCHAR(20),
+      estado_nuevo VARCHAR(20),
+      cambiado_por UUID,
+      fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+    const { rows } = await query(
+      `SELECT h.*, u.nombres||' '||u.apellidos AS cambiado_por_nombre 
+       FROM historial_riesgos h 
+       LEFT JOIN usuarios u ON h.cambiado_por=u.id 
+       WHERE h.riesgo_id=$1 ORDER BY h.fecha_cambio DESC`,
+      [riesgo_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 export const listarMitigaciones = async (req, res) => {

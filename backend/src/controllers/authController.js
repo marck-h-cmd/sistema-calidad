@@ -71,3 +71,53 @@ export const listarUsuarios = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const editarUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombres, facultad, escuela } = req.body;
+    const { rows } = await query(
+      'UPDATE usuarios SET nombres=$1, facultad=$2, escuela=$3, modificado_por=$4 WHERE id=$5 RETURNING id, nombres, apellidos, correo, rol, facultad, escuela',
+      [nombres, facultad, escuela, req.usuario.id, id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const cambiarPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { contrasena_actual, contrasena_nueva } = req.body;
+    if (!contrasena_actual || !contrasena_nueva) return res.status(400).json({ error: 'Faltan datos' });
+
+    const { rows } = await query('SELECT contrasena_hash FROM usuarios WHERE id=$1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const valido = await bcrypt.compare(contrasena_actual, rows[0].contrasena_hash);
+    if (!valido) return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+
+    const hash = await bcrypt.hash(contrasena_nueva, 10);
+    await query('UPDATE usuarios SET contrasena_hash=$1, modificado_por=$2 WHERE id=$3', [hash, req.usuario.id, id]);
+    
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const obtenerUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      'SELECT id,codigo,nombres,apellidos,correo,rol,facultad,escuela,activo,ultimo_acceso FROM usuarios WHERE id=$1',
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

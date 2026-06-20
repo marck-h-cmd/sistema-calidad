@@ -18,6 +18,9 @@ r.post('/auth/login', auth.login);
 r.post('/auth/registrar', auth.registrar);
 r.get('/auth/perfil', verificarToken, auth.perfil);
 r.get('/usuarios', verificarToken, auth.listarUsuarios);
+r.get('/usuarios/:id', verificarToken, auth.obtenerUsuario);
+r.put('/usuarios/:id', verificarToken, auth.editarUsuario);
+r.put('/usuarios/:id/password', verificarToken, auth.cambiarPassword);
 
 // DASHBOARD
 r.get('/dashboard', verificarToken, dash.resumen);
@@ -66,6 +69,7 @@ r.patch('/hallazgos/:id', verificarToken, aud.actualizarHallazgo);
 r.get('/auditorias', verificarToken, aud.listarAuditorias);
 r.post('/auditorias', verificarToken, aud.crearAuditoriaPlan);
 r.get('/auditorias/:id/hallazgos', verificarToken, aud.listarHallazgosDePlan);
+r.get('/planes-auditoria/:id/estadisticas', verificarToken, aud.estadisticasPlan);
 r.get('/programas', verificarToken, aud.listarProgramas);
 
 // CAPAS
@@ -73,12 +77,16 @@ r.get('/reportes/capas', verificarToken, capa.reporte);
 r.get('/capas', verificarToken, capa.listar);
 r.post('/capas', verificarToken, capa.crear);
 r.patch('/capas/:id/estado', verificarToken, capa.actualizarEstado);
+r.post('/capas/:id/seguimiento', verificarToken, capa.registrarSeguimiento);
+r.get('/capas/:id/seguimientos', verificarToken, capa.listarSeguimientos);
 
 // RIESGOS
 r.get('/reportes/riesgos', verificarToken, riesgo.reporte);
+r.get('/riesgos/matriz', verificarToken, riesgo.matriz);
 r.get('/riesgos', verificarToken, riesgo.listar);
 r.post('/riesgos', verificarToken, riesgo.crear);
 r.patch('/riesgos/:id', verificarToken, riesgo.actualizar);
+r.get('/riesgos/:riesgo_id/historial', verificarToken, riesgo.listarHistorial);
 r.get('/riesgos/:riesgo_id/mitigaciones', verificarToken, riesgo.listarMitigaciones);
 r.post('/mitigaciones', verificarToken, riesgo.crearMitigacion);
 

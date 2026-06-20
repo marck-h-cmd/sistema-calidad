@@ -5,7 +5,8 @@ export const listar = async (req, res) => {
   try {
     const { rows } = await query(`
       SELECT c.*, u.nombres||' '||u.apellidos AS responsable_nombre,
-             h.descripcion AS hallazgo_descripcion
+             h.descripcion AS hallazgo_descripcion,
+             COALESCE((SELECT avance FROM seguimientos_capa WHERE capa_id = c.id ORDER BY fecha_seguimiento DESC, creado_en DESC LIMIT 1), 0) as avance
       FROM capas c
       LEFT JOIN usuarios u ON c.responsable_id=u.id
       LEFT JOIN hallazgos h ON c.hallazgo_id=h.id
@@ -56,4 +57,35 @@ export const reporte = async (req, res) => {
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename=capas.pdf' });
     res.send(pdf);
   } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const registrarSeguimiento = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fecha_seguimiento, avance, observaciones } = req.body;
+    const { rows } = await query(
+      `INSERT INTO seguimientos_capa (capa_id, fecha_seguimiento, avance, observaciones, creado_por)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [id, fecha_seguimiento, avance, observaciones, req.usuario.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const listarSeguimientos = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `SELECT s.*, u.nombres||' '||u.apellidos AS creado_por_nombre 
+       FROM seguimientos_capa s 
+       LEFT JOIN usuarios u ON s.creado_por=u.id 
+       WHERE s.capa_id=$1 ORDER BY s.fecha_seguimiento DESC`,
+      [id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
