@@ -104,3 +104,39 @@ export const reporte = async (req, res) => {
     res.send(pdf);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
+
+// GET /procesos/:id/documentos → documentos donde proceso_id = id
+export const listarDocumentosProceso = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(`
+      SELECT d.id, d.codigo, d.titulo, d.estado, d.version_actual,
+             t.nombre AS tipo_nombre
+      FROM documentos d
+      LEFT JOIN tipos_documento t ON d.tipo_documento_id = t.id
+      WHERE d.proceso_id = $1
+      ORDER BY d.codigo
+    `, [id]);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+// POST /procesos/:id/asociar-documento → { documento_id } → actualiza documentos.proceso_id
+export const asociarDocumento = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { documento_id } = req.body;
+    if (!documento_id) return res.status(400).json({ error: 'documento_id es requerido' });
+
+    // Verificar que el proceso existe
+    const proc = await query('SELECT id FROM procesos WHERE id=$1', [id]);
+    if (!proc.rows.length) return res.status(404).json({ error: 'Proceso no encontrado' });
+
+    const { rows } = await query(
+      `UPDATE documentos SET proceso_id=$1, modificado_por=$2 WHERE id=$3 RETURNING id, codigo, titulo, estado, version_actual`,
+      [id, req.usuario.id, documento_id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Documento no encontrado' });
+    res.json({ mensaje: 'Documento asociado correctamente', documento: rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};

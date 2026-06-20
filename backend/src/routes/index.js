@@ -41,6 +41,8 @@ r.get('/procesos', verificarToken, proc.listarProcesos);
 r.post('/procesos', verificarToken, proc.crearProceso);
 r.put('/procesos/:id', verificarToken, proc.actualizarProceso);
 r.get('/procesos/:proceso_id/actividades', verificarToken, proc.listarActividades);
+r.get('/procesos/:id/documentos', verificarToken, proc.listarDocumentosProceso);
+r.post('/procesos/:id/asociar-documento', verificarToken, proc.asociarDocumento);
 r.post('/actividades', verificarToken, proc.crearActividad);
 
 // ACREDITACION
@@ -51,6 +53,8 @@ r.get('/estandares/:estandar_id/factores', verificarToken, acr.listarFactores);
 r.post('/factores', verificarToken, acr.crearFactor);
 r.get('/autoevaluaciones', verificarToken, acr.listarAutoevaluaciones);
 r.post('/autoevaluaciones', verificarToken, acr.crearAutoevaluacion);
+r.get('/autoevaluaciones/:id/detalle', verificarToken, acr.obtenerAutoevaluacionDetalle);
+r.put('/autoevaluaciones/:id/puntaje', verificarToken, acr.calcularPuntajeTotal);
 r.post('/evaluaciones-criterio', verificarToken, acr.evaluarCriterio);
 r.get('/certificaciones', verificarToken, acr.listarCertificaciones);
 r.post('/certificaciones', verificarToken, acr.crearCertificacion);
@@ -93,6 +97,8 @@ r.post('/mitigaciones', verificarToken, riesgo.crearMitigacion);
 // INDICADORES
 r.get('/reportes/indicadores', verificarToken, ind.reporte);
 r.get('/reportes/indicadores/excel', verificarToken, ind.exportarExcel);
+r.get('/indicadores/resumen', verificarToken, ind.obtenerResumen);
+r.get('/indicadores/exportar-csv', verificarToken, ind.exportarCSV);
 r.get('/indicadores', verificarToken, ind.listar);
 r.post('/indicadores', verificarToken, ind.crear);
 r.get('/indicadores/:indicador_id/mediciones', verificarToken, ind.listarMediciones);
@@ -100,11 +106,13 @@ r.post('/mediciones', verificarToken, ind.registrarMedicion);
 
 // ENCUESTAS — orden importa: rutas específicas ANTES de /:id
 r.get('/reportes/encuestas', verificarToken, enc.reporte);
+r.get('/encuestas/dashboard', verificarToken, enc.dashboardGlobal);           // ANTES de /:id
 r.get('/encuestas', verificarToken, enc.listar);
 r.post('/encuestas', verificarToken, enc.crear);
-r.post('/encuestas/responder', verificarToken, enc.responder);   // ANTES de /:id
+r.post('/encuestas/responder', verificarToken, enc.responder);                // ANTES de /:id
 r.get('/encuestas/:id/resultados', verificarToken, enc.resultados);
+r.get('/encuestas/:id/resultados-detalle', verificarToken, enc.resultadosDetalle);
 r.patch('/encuestas/:id/publicar', verificarToken, enc.publicar);
-r.get('/encuestas/:id', verificarToken, enc.obtenerConPreguntas); // AL FINAL
+r.get('/encuestas/:id', verificarToken, enc.obtenerConPreguntas);             // AL FINAL
 
 export default r;

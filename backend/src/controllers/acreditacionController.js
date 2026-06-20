@@ -65,12 +65,29 @@ export const crearAutoevaluacion = async (req, res) => {
 export const evaluarCriterio = async (req, res) => {
   try {
     const { autoevaluacion_id, factor_id, cumplimiento, puntaje, evidencias, observaciones } = req.body;
-    const { rows } = await query(
-      `INSERT INTO evaluaciones_criterio (autoevaluacion_id,factor_id,cumplimiento,puntaje,evidencias,observaciones,creado_por,modificado_por)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$7) RETURNING *`,
-      [autoevaluacion_id, factor_id, cumplimiento, puntaje || null, evidencias, observaciones, req.usuario.id]
+    
+    // Check if an evaluation already exists for this factor in this autoevaluacion
+    const checkEval = await query(
+      'SELECT id FROM evaluaciones_criterio WHERE autoevaluacion_id = $1 AND factor_id = $2',
+      [autoevaluacion_id, factor_id]
     );
-    res.status(201).json(rows[0]);
+
+    let result;
+    if (checkEval.rows.length > 0) {
+      result = await query(
+        `UPDATE evaluaciones_criterio 
+         SET cumplimiento = $1, puntaje = $2, evidencias = $3, observaciones = $4, modificado_en = CURRENT_TIMESTAMP, modificado_por = $5
+         WHERE id = $6 RETURNING *`,
+        [cumplimiento, puntaje != null && puntaje !== '' ? puntaje : null, evidencias, observaciones, req.usuario.id, checkEval.rows[0].id]
+      );
+    } else {
+      result = await query(
+        `INSERT INTO evaluaciones_criterio (autoevaluacion_id, factor_id, cumplimiento, puntaje, evidencias, observaciones, creado_por, modificado_por)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING *`,
+        [autoevaluacion_id, factor_id, cumplimiento, puntaje != null && puntaje !== '' ? puntaje : null, evidencias, observaciones, req.usuario.id]
+      );
+    }
+    res.status(200).json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
@@ -198,4 +215,86 @@ export const actualizarRequisito = async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+export const calcularPuntajeTotal = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch the factors and their corresponding evaluations for this autoevaluacion
+    const { rows } = await query(`
+      SELECT f.peso, e.puntaje
+      FROM factores_criterio f
+      JOIN autoevaluaciones a ON a.estandar_id = f.estandar_id
+      LEFT JOIN evaluaciones_criterio e ON e.factor_id = f.id AND e.autoevaluacion_id = a.id
+      WHERE a.id = $1
+    `, [id]);
+
+    if (rows.length === 0) {
+      const checkAuto = await query('SELECT id FROM autoevaluaciones WHERE id = $1', [id]);
+      if (checkAuto.rows.length === 0) {
+        return res.status(404).json({ error: 'Autoevaluación no encontrada' });
+      }
+      await query('UPDATE autoevaluaciones SET puntaje_total = 0 WHERE id = $1', [id]);
+      return res.json({ success: true, puntaje_total: 0 });
+    }
+
+    let sumaPonderada = 0;
+    let sumaPesos = 0;
+
+    for (const row of rows) {
+      const peso = parseFloat(row.peso) || 0;
+      const puntaje = row.puntaje != null ? parseFloat(row.puntaje) : 0;
+      sumaPonderada += puntaje * peso;
+      sumaPesos += peso;
+    }
+
+    const puntajeTotal = sumaPesos > 0 ? (sumaPonderada / sumaPesos) : 0;
+
+    await query(
+      'UPDATE autoevaluaciones SET puntaje_total = $1, modificado_en = CURRENT_TIMESTAMP WHERE id = $2',
+      [parseFloat(puntajeTotal.toFixed(2)), id]
+    );
+
+    res.json({ success: true, puntaje_total: parseFloat(puntajeTotal.toFixed(2)) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const obtenerAutoevaluacionDetalle = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch autoevaluación details
+    const autoQuery = await query(`
+      SELECT a.*, e.nombre AS estandar_nombre, e.organizacion AS estandar_organizacion
+      FROM autoevaluaciones a
+      LEFT JOIN estandares_acreditacion e ON a.estandar_id = e.id
+      WHERE a.id = $1
+    `, [id]);
+
+    if (autoQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'Autoevaluación no encontrada' });
+    }
+
+    const autoevaluacion = autoQuery.rows[0];
+
+    // Fetch factors of the standard, along with evaluations if they exist
+    const factorsQuery = await query(`
+      SELECT f.id AS factor_id, f.codigo, f.nombre, f.descripcion, f.peso,
+             ev.id AS evaluacion_id, ev.cumplimiento, ev.puntaje, ev.evidencias, ev.observaciones
+      FROM factores_criterio f
+      LEFT JOIN evaluaciones_criterio ev ON ev.factor_id = f.id AND ev.autoevaluacion_id = $1
+      WHERE f.estandar_id = $2
+      ORDER BY f.codigo
+    `, [id, autoevaluacion.estandar_id]);
+
+    res.json({
+      ...autoevaluacion,
+      factores: factorsQuery.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
