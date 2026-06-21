@@ -8,6 +8,7 @@ export default function ProtectedLayout({ children }) {
   const { usuario, cargando } = useAuth();
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -37,7 +38,7 @@ export default function ProtectedLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Sidebar />
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <main role="main" aria-label="Contenido principal" className={`flex-1 overflow-auto ${isMobile ? 'pt-16' : ''}`}>
         <div className="animate-in">
           {children}

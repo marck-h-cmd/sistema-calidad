@@ -18,7 +18,7 @@ const cumplColor = (c) => {
 function Modal({ title, onClose, children }) {
   return (
     <div className="modal-overlay">
-      <div className="modal-box max-w-lg w-full animate-in">
+      <div className="modal-box max-w-[95vw] sm:max-w-lg w-full animate-in">
         <div className="modal-header flex items-center justify-between">
           <h2 className="section-title">{title}</h2>
           <button onClick={onClose} className="btn-ghost p-1.5">
@@ -191,7 +191,7 @@ export default function IndicadoresPage() {
   return (
     <ProtectedLayout>
       {/* Cabecera */}
-      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-10">
+      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl sticky top-0 z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="page-title flex items-center gap-2">
@@ -439,32 +439,34 @@ export default function IndicadoresPage() {
                       <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">Historial de Mediciones</span>
                       <span className="text-[10px] text-slate-400 dark:text-slate-500">{filteredMediciones.length} periodos</span>
                     </div>
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-slate-50/30 dark:bg-slate-800/20">
-                          <th className="table-header py-2">Periodo</th>
-                          <th className="table-header py-2 text-right">Real</th>
-                          <th className="table-header py-2 text-right">Esperado</th>
-                          <th className="table-header py-2 text-center">Cumplimiento</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                        {filteredMediciones.map(m => (
-                          <tr key={m.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                            <td className="table-cell py-2 font-medium">{m.periodo}</td>
-                            <td className="table-cell py-2 text-right font-semibold text-blue-600 dark:text-blue-400">{m.valor_real} {sel.unidad_medida}</td>
-                            <td className="table-cell py-2 text-right text-slate-400 dark:text-slate-500">{m.valor_esperado || '—'}</td>
-                            <td className="table-cell py-2 text-center">
-                              {m.cumplimiento != null ? (
-                                <span className={`badge text-[9px] px-2 py-0.5 ${cumplColor(parseFloat(m.cumplimiento))}`}>
-                                  {m.cumplimiento}%
-                                </span>
-                              ) : '—'}
-                            </td>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-slate-50/30 dark:bg-slate-800/20">
+                            <th className="table-header py-2">Periodo</th>
+                            <th className="table-header py-2 text-right">Real</th>
+                            <th className="table-header py-2 text-right">Esperado</th>
+                            <th className="table-header py-2 text-center">Cumplimiento</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                          {filteredMediciones.map(m => (
+                            <tr key={m.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                              <td className="table-cell py-2 font-medium">{m.periodo}</td>
+                              <td className="table-cell py-2 text-right font-semibold text-blue-600 dark:text-blue-400">{m.valor_real} {sel.unidad_medida}</td>
+                              <td className="table-cell py-2 text-right text-slate-400 dark:text-slate-500">{m.valor_esperado || '—'}</td>
+                              <td className="table-cell py-2 text-center">
+                                {m.cumplimiento != null ? (
+                                  <span className={`badge text-[9px] px-2 py-0.5 ${cumplColor(parseFloat(m.cumplimiento))}`}>
+                                    {m.cumplimiento}%
+                                  </span>
+                                ) : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </>

@@ -407,13 +407,13 @@ export default function AcreditacionPage() {
 
   return (
     <ProtectedLayout>
-      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl sticky top-0 z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="page-title">Gestión de Acreditación</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{certificaciones.length} estándares registrados</p>
           </div>
-          <button className="btn-primary flex items-center gap-2" onClick={() => { setForm({ nombre: '', organismo: '', norma: '', fecha_emision: '', fecha_vencimiento: '', estado: 'activo' }); setError(''); setModal('certificacion'); }}>
+          <button className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto" onClick={() => { setForm({ nombre: '', organismo: '', norma: '', fecha_emision: '', fecha_vencimiento: '', estado: 'activo' }); setError(''); setModal('certificacion'); }}>
             <Plus className="w-4 h-4" />
             Nuevo Estándar
           </button>

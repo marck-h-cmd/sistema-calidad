@@ -13,7 +13,7 @@ const estadoBadge = {
 function Modal({ title, onClose, children }) {
   return (
     <div className="modal-overlay">
-      <div className="modal-box max-w-lg w-full animate-in">
+      <div className="modal-box max-w-[95vw] sm:max-w-lg w-full animate-in">
         <div className="modal-header flex items-center justify-between">
           <h2 className="section-title">{title}</h2>
           <button onClick={onClose} className="btn-ghost p-1.5">
@@ -88,18 +88,18 @@ export default function DocumentosPage() {
   return (
     <ProtectedLayout>
       {/* Header */}
-      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="flex items-center justify-between gap-4">
+      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl sticky top-0 z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="page-title">Gestión Documental</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{docs.length} documentos registrados</p>
           </div>
-          <div className="flex gap-3">
-            <button className="btn-secondary flex items-center gap-2" onClick={descargarPDF}>
+          <div className="flex gap-3 w-full sm:w-auto">
+            <button className="btn-secondary flex-1 sm:flex-none flex items-center justify-center gap-2" onClick={descargarPDF}>
               <Download className="w-4 h-4" />
               PDF
             </button>
-            <button className="btn-primary flex items-center gap-2" onClick={abrirCrear}>
+            <button className="btn-primary flex-1 sm:flex-none flex items-center justify-center gap-2" onClick={abrirCrear}>
               <Plus className="w-4 h-4" />
               Nuevo Documento
             </button>
@@ -123,42 +123,44 @@ export default function DocumentosPage() {
 
         {/* Table */}
         <div className="card overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
-              <tr>
-                <th className="table-header">Código</th>
-                <th className="table-header">Título</th>
-                <th className="table-header">Tipo</th>
-                <th className="table-header">Estado</th>
-                <th className="table-header">Ver.</th>
-                <th className="table-header">Fecha</th>
-                <th className="table-header">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-              {filtrados.length === 0 && (
-                <tr><td colSpan={7} className="py-16 text-center text-slate-400 dark:text-slate-500 text-sm">
-                  No hay documentos {filtro || filtroEstado ? 'que coincidan' : 'registrados'}
-                </td></tr>
-              )}
-              {filtrados.map(d => (
-                <tr key={d.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors group">
-                  <td className="table-cell"><span className="font-mono text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{d.codigo}</span></td>
-                  <td className="table-cell font-medium text-slate-800 dark:text-slate-200 max-w-xs truncate">{d.titulo}</td>
-                  <td className="table-cell text-slate-400 dark:text-slate-500 text-xs">{d.tipo_nombre || '—'}</td>
-                  <td className="table-cell"><span className={`badge ${estadoBadge[d.estado] || 'badge-gray'}`}>{d.estado}</span></td>
-                  <td className="table-cell text-slate-400 dark:text-slate-500 text-xs">v{d.version_actual}</td>
-                  <td className="table-cell text-slate-400 dark:text-slate-500 text-xs">{d.creado_en ? new Date(d.creado_en).toLocaleDateString('es-PE') : '—'}</td>
-                  <td className="table-cell">
-                    <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => abrirEditar(d)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs font-semibold">Editar</button>
-                      <button onClick={() => eliminar(d.id)} className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs font-semibold">Eliminar</button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                <tr>
+                  <th className="table-header">Código</th>
+                  <th className="table-header">Título</th>
+                  <th className="table-header">Tipo</th>
+                  <th className="table-header">Estado</th>
+                  <th className="table-header">Ver.</th>
+                  <th className="table-header">Fecha</th>
+                  <th className="table-header">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                {filtrados.length === 0 && (
+                  <tr><td colSpan={7} className="py-16 text-center text-slate-400 dark:text-slate-500 text-sm">
+                    No hay documentos {filtro || filtroEstado ? 'que coincidan' : 'registrados'}
+                  </td></tr>
+                )}
+                {filtrados.map(d => (
+                  <tr key={d.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors group">
+                    <td className="table-cell"><span className="font-mono text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{d.codigo}</span></td>
+                    <td className="table-cell font-medium text-slate-800 dark:text-slate-200 max-w-xs truncate">{d.titulo}</td>
+                    <td className="table-cell text-slate-400 dark:text-slate-500 text-xs">{d.tipo_nombre || '—'}</td>
+                    <td className="table-cell"><span className={`badge ${estadoBadge[d.estado] || 'badge-gray'}`}>{d.estado}</span></td>
+                    <td className="table-cell text-slate-400 dark:text-slate-500 text-xs">v{d.version_actual}</td>
+                    <td className="table-cell text-slate-400 dark:text-slate-500 text-xs">{d.creado_en ? new Date(d.creado_en).toLocaleDateString('es-PE') : '—'}</td>
+                    <td className="table-cell">
+                      <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => abrirEditar(d)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs font-semibold">Editar</button>
+                        <button onClick={() => eliminar(d.id)} className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs font-semibold">Eliminar</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {filtrados.length > 0 && (
             <div className="px-4 py-3 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-700 text-xs text-slate-400 dark:text-slate-500">
               Mostrando {filtrados.length} de {docs.length} documentos
