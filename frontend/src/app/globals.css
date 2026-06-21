@@ -2,12 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══ Theme Variables ═══ */
+:root {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --sidebar-bg: #0a1628;
+  --sidebar-text: #94a3b8;
+}
+.dark {
+  --bg: #0a0f1e;
+  --surface: #111827;
+  --border: #1f2937;
+  --text: #f1f5f9;
+  --text-muted: #64748b;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --sidebar-bg: #080d1a;
+  --sidebar-text: #64748b;
+}
+
 @layer base {
   * { box-sizing: border-box; }
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-color: var(--bg);
+    color: var(--text);
   }
   ::selection { @apply bg-blue-200 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100; }
 }
@@ -182,4 +208,85 @@ input[type='range']::-webkit-slider-thumb:hover {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* ═══ Login Background ═══ */
+@keyframes loginGradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.login-bg {
+  background: linear-gradient(-45deg, #0a1628, #1a1035, #0f1d3a, #0a1628);
+  background-size: 400% 400%;
+  animation: loginGradient 12s ease infinite;
+}
+.login-bg-light {
+  background: linear-gradient(-45deg, #dbeafe, #ede9fe, #f0f4f8, #dbeafe);
+  background-size: 400% 400%;
+  animation: loginGradient 12s ease infinite;
+}
+
+/* ═══ Shimmer Button ═══ */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.shimmer-btn {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transform: translateX(-100%);
+}
+.shimmer-btn:hover::after {
+  animation: shimmer 0.8s ease-in-out;
+}
+
+/* ═══ Floating Label ═══ */
+.floating-group {
+  position: relative;
+}
+.floating-group .floating-input {
+  @apply w-full px-5 pt-6 pb-2 rounded-2xl text-sm border transition-all duration-300;
+  @apply border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50;
+  @apply focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10;
+  @apply text-slate-900 dark:text-white;
+}
+.floating-group .floating-input:focus + .floating-label,
+.floating-group .floating-input:not(:placeholder-shown) + .floating-label {
+  @apply text-[10px] top-2 text-blue-500;
+}
+.floating-group .floating-label {
+  @apply absolute left-5 top-4 text-sm text-slate-400 dark:text-slate-500 pointer-events-none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ═══ Theme Toggle Spin ═══ */
+@keyframes themeSpin {
+  0% { transform: rotate(0deg) scale(0.8); opacity: 0.5; }
+  50% { transform: rotate(180deg) scale(1.1); }
+  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+}
+.theme-spin {
+  animation: themeSpin 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ═══ Sidebar Tooltip ═══ */
+.sidebar-tooltip {
+  @apply invisible opacity-0 absolute left-full ml-3 px-3 py-1.5 bg-slate-900 dark:bg-slate-700 text-white text-xs rounded-lg whitespace-nowrap z-50 pointer-events-none;
+  transition: all 0.15s ease;
+}
+.sidebar-tooltip::before {
+  content: '';
+  @apply absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900 dark:border-r-slate-700;
+}
+.group:hover .sidebar-tooltip {
+  @apply visible opacity-100;
 }

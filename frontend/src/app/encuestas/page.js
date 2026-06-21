@@ -342,24 +342,24 @@ export default function EncuestasPage() {
   return (
     <ProtectedLayout>
       {/* Cabecera */}
-      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="flex items-center justify-between gap-4">
+      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl sticky top-0 z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="page-title">Gestión de la Satisfacción</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{encuestas.length} encuestas registradas</p>
           </div>
-          <div className="flex gap-3">
-            <button className="btn-secondary flex items-center gap-2" onClick={descargarPDF}>
+          <div className="flex gap-3 w-full sm:w-auto flex-wrap">
+            <button className="btn-secondary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={descargarPDF}>
               <Download className="w-4 h-4" />
               Reporte PDF
             </button>
             {tab !== 'lista' && (
-              <button className="btn-secondary flex items-center gap-2" onClick={() => { setTab('lista'); setEncuestaActiva(null); }}>
+              <button className="btn-secondary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={() => { setTab('lista'); setEncuestaActiva(null); }}>
                 <ArrowLeft className="w-4 h-4" /> Volver
               </button>
             )}
             {tab === 'lista' && (
-              <button className="btn-primary flex items-center gap-2" onClick={() => { setModal(true); setError(''); }}>
+              <button className="btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={() => { setModal(true); setError(''); }}>
                 <Plus className="w-4 h-4" />
                 Nueva Encuesta
               </button>

@@ -57,7 +57,7 @@ const DOC_ESTADO_COLOR = {
 function Modal({ title, onClose, children, maxW = 'max-w-md' }) {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className={`bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full ${maxW} max-h-[90vh] overflow-y-auto`}>
+      <div className={`bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-[95vw] sm:${maxW} max-h-[90vh] overflow-y-auto`}>
         <div className="p-5 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10 rounded-t-3xl flex items-center justify-between">
           <h2 className="section-title">{title}</h2>
           <button onClick={onClose} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
@@ -171,23 +171,23 @@ export default function ProcesosPage() {
   return (
     <ProtectedLayout>
       {/* ── Cabecera ────────────────────────────────────────── */}
-      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl sticky top-0 z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="page-title">Mapa de Procesos</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
               {procesos.length} procesos · {macroprocesos.length} macroprocesos
             </p>
           </div>
-          <div className="flex gap-3 flex-wrap">
-            <button className="btn-secondary flex items-center gap-2" onClick={descargarPDF}>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <button className="btn-secondary flex items-center justify-center gap-2" onClick={descargarPDF}>
               <Download className="w-4 h-4" /> Reporte PDF
             </button>
-            <button className="btn-secondary flex items-center gap-2"
+            <button className="btn-secondary flex items-center justify-center gap-2"
               onClick={() => { setForm({ codigo: '', nombre: '', descripcion: '', tipo: 'misional' }); setError(''); setModal('macro'); }}>
               <Plus className="w-4 h-4" /> Macroproceso
             </button>
-            <button className="btn-primary flex items-center gap-2"
+            <button className="btn-primary flex items-center justify-center gap-2"
               onClick={() => { setForm({ codigo: '', nombre: '', objetivo: '', macroproceso_id: macroprocesos[0]?.id || '' }); setError(''); setModal('proceso'); }}>
               <Plus className="w-4 h-4" /> Proceso
             </button>

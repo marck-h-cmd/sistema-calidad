@@ -63,18 +63,18 @@ export default function AuditoriasPage() {
 
   return (
     <ProtectedLayout>
-      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="px-6 md:px-8 py-5 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl sticky top-0 z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="page-title">Gestión de Auditorías</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{auditorias.length} auditorías registradas</p>
           </div>
-          <div className="flex gap-3 flex-wrap">
-            <button className="btn-secondary flex items-center gap-2" onClick={descargarPDF}>
+          <div className="flex gap-3 flex-wrap w-full sm:w-auto">
+            <button className="btn-secondary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={descargarPDF}>
               <Download className="w-4 h-4" />
               Reporte PDF
             </button>
-            <button className="btn-primary flex items-center gap-2" onClick={() => { setForm({ codigo: '', tipo: 'interna', fecha: new Date().toISOString().split('T')[0], alcance: '', criterios: '', programa_id: '', auditor_lider_id: usuarios[0]?.id || '' }); setError(''); setModal('auditoria'); }}>
+            <button className="btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={() => { setForm({ codigo: '', tipo: 'interna', fecha: new Date().toISOString().split('T')[0], alcance: '', criterios: '', programa_id: '', auditor_lider_id: usuarios[0]?.id || '' }); setError(''); setModal('auditoria'); }}>
               <Plus className="w-4 h-4" />
               Nueva Auditoría
             </button>
@@ -189,7 +189,7 @@ export default function AuditoriasPage() {
 
         {modal === 'auditoria' && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md p-6">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-[95vw] sm:max-w-md p-6">
               <h2 className="section-title mb-4">Nueva Auditoría</h2>
               <form onSubmit={guardarAuditoria} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -221,7 +221,7 @@ export default function AuditoriasPage() {
 
         {modal === 'hallazgo' && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md p-6">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-[95vw] sm:max-w-md p-6">
               <h2 className="section-title mb-4">Nuevo Hallazgo</h2>
               <form onSubmit={guardarHallazgo} className="space-y-4">
                 <div><label className="label">Descripción</label><textarea className="input" rows={2} value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} required /></div>

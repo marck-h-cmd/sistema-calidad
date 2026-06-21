@@ -13,16 +13,39 @@ import { FileText, AlertTriangle, Search, CheckCircle2, TrendingUp, ClipboardLis
 const COLORS = ['#ef4444','#f97316','#eab308','#22c55e'];
 const LINE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
-const StatCard = ({ label, value, sublabel, gradient, icon }) => (
-  <div className="card p-6 relative overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-default">
-    <div className="flex items-start justify-between mb-5">
-      <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-tight">{label}</p>
-      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0" style={{ background: gradient }}>{icon}</div>
+const StatCard = ({ label, value, sublabel, gradient, icon }) => {
+  const [display, setDisplay] = useState(0);
+  const target = typeof value === 'number' ? value : parseInt(value) || 0;
+
+  useEffect(() => {
+    if (target === 0) { setDisplay(0); return; }
+    let start = 0;
+    const duration = 1000;
+    const stepTime = Math.max(Math.floor(duration / target), 16);
+    const increment = Math.ceil(target / (duration / stepTime));
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= target) {
+        setDisplay(target);
+        clearInterval(timer);
+      } else {
+        setDisplay(start);
+      }
+    }, stepTime);
+    return () => clearInterval(timer);
+  }, [target]);
+
+  return (
+    <div className="card p-6 relative overflow-hidden group hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 cursor-default">
+      <div className="flex items-start justify-between mb-5">
+        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-tight">{label}</p>
+        <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0 group-hover:scale-110 transition-transform duration-300" style={{ background: gradient }}>{icon}</div>
+      </div>
+      <p className="text-4xl font-extrabold text-slate-900 dark:text-white tabular-nums">{display}</p>
+      {sublabel && <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">{sublabel}</p>}
     </div>
-    <p className="text-4xl font-extrabold text-slate-900 dark:text-white tabular-nums">{value}</p>
-    {sublabel && <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">{sublabel}</p>}
-  </div>
-);
+  );
+};
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -154,7 +177,7 @@ export default function DashboardPage() {
   return (
     <ProtectedLayout>
       {/* Header */}
-      <div className="px-6 md:px-8 py-6 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl sticky top-0 z-10">
+      <div className="px-6 md:px-8 py-6 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-white via-white to-blue-50/50 dark:from-slate-900/80 dark:via-slate-900/80 dark:to-blue-950/30 backdrop-blur-xl sticky top-0 z-10">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="page-title">Panel de Control</h1>

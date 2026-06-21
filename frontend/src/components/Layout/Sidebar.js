@@ -14,7 +14,9 @@ import {
   ClipboardList,
   LogOut,
   Menu,
-  X
+  X,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -50,57 +52,91 @@ const nav = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed, setCollapsed }) {
   const pathname = usePathname();
   const { usuario, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [breakpoint, setBreakpoint] = useState('desktop'); // 'mobile' | 'tablet' | 'desktop'
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const check = () => {
+      const w = window.innerWidth;
+      if (w < 768) setBreakpoint('mobile');
+      else if (w < 1024) setBreakpoint('tablet');
+      else setBreakpoint('desktop');
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
 
+  // Auto-collapse on tablet
+  useEffect(() => {
+    if (breakpoint === 'tablet' && !collapsed) {
+      setCollapsed(true);
+    }
+    if (breakpoint === 'desktop' && collapsed) {
+      setCollapsed(false);
+    }
+  }, [breakpoint]);
+
+  // Close mobile drawer on navigation
+  useEffect(() => {
+    if (breakpoint === 'mobile') {
+      setMobileOpen(false);
+    }
+  }, [pathname]);
+
   const isActive = (href) => pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+  const isCollapsed = collapsed && breakpoint !== 'mobile';
 
   const sidebarContent = (
-    <aside className="w-[250px] min-h-screen bg-white dark:bg-slate-900 flex flex-col shrink-0 border-r border-slate-200 dark:border-slate-800">
+    <aside className={`${isCollapsed ? 'w-[72px]' : 'w-[250px]'} min-h-screen bg-white dark:bg-slate-900 flex flex-col shrink-0 border-r border-slate-200 dark:border-slate-800 transition-all duration-300`}>
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-4">
+      <div className="px-4 py-6 border-b border-slate-200 dark:border-slate-800">
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-4 px-2'}`}>
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-xl shadow-blue-900/30 shrink-0">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
-          <div className="min-w-0">
-            <p className="text-slate-900 dark:text-white font-extrabold text-sm leading-tight">SGC — UNT</p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">Sistema de Calidad</p>
-          </div>
+          {!isCollapsed && (
+            <div className="min-w-0">
+              <p className="text-slate-900 dark:text-white font-extrabold text-sm leading-tight">SGC — UNT</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">Sistema de Calidad</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-6 px-4 overflow-y-auto space-y-6">
+      <nav className="flex-1 py-6 px-3 overflow-y-auto space-y-6">
         {nav.map((group) => (
           <div key={group.group}>
-            <p className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-2">
-              {group.group}
-            </p>
+            {!isCollapsed && (
+              <p className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-2">
+                {group.group}
+              </p>
+            )}
+            {isCollapsed && (
+              <div className="w-full h-px bg-slate-200 dark:bg-slate-700 my-2" />
+            )}
             <div className="space-y-1">
               {group.items.map((item) => {
                 const active = isActive(item.href);
                 return (
-                  <Link 
-                    key={item.href} 
+                  <Link
+                    key={item.href}
                     href={item.href}
-                    onClick={() => isMobile && setMobileOpen(false)}
-                    className={`sidebar-link ${active ? 'active' : ''}`}
+                    onClick={() => breakpoint === 'mobile' && setMobileOpen(false)}
+                    className={`sidebar-link ${active ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 group relative' : ''}`}
+                    title={isCollapsed ? item.label : undefined}
                   >
-                    {item.icon}
-                    <span className="truncate">{item.label}</span>
+                    <span className="shrink-0">{item.icon}</span>
+                    {!isCollapsed && <span className="truncate">{item.label}</span>}
+                    {isCollapsed && (
+                      <span className="sidebar-tooltip">{item.label}</span>
+                    )}
                   </Link>
                 );
               })}
@@ -109,28 +145,57 @@ export default function Sidebar() {
         ))}
       </nav>
 
+      {/* Collapse Toggle (tablet & desktop) */}
+      {breakpoint !== 'mobile' && (
+        <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800">
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="sidebar-link w-full justify-center text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          >
+            {isCollapsed ? <ChevronsRight className="w-5 h-5" /> : <ChevronsLeft className="w-5 h-5" />}
+            {!isCollapsed && <span className="truncate">Colapsar</span>}
+          </button>
+        </div>
+      )}
+
       {/* User */}
       <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-3 px-3 py-3 rounded-2xl mb-2 bg-slate-50 dark:bg-slate-800/50">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {usuario?.nombres?.charAt(0) || 'U'}
+        {!isCollapsed ? (
+          <>
+            <div className="flex items-center gap-3 px-3 py-3 rounded-2xl mb-2 bg-slate-50 dark:bg-slate-800/50">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                {usuario?.nombres?.charAt(0) || 'U'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{usuario?.nombres}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 capitalize truncate">{usuario?.rol?.replace('_', ' ')}</p>
+              </div>
+              <ThemeToggle />
+            </div>
+            <button onClick={logout}
+              className="sidebar-link w-full text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 mt-1">
+              <LogOut className="w-5 h-5" />
+              Cerrar Sesión
+            </button>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+              {usuario?.nombres?.charAt(0) || 'U'}
+            </div>
+            <ThemeToggle />
+            <button onClick={logout}
+              className="p-2 rounded-xl text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              title="Cerrar Sesión">
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{usuario?.nombres}</p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 capitalize truncate">{usuario?.rol?.replace('_', ' ')}</p>
-          </div>
-          <ThemeToggle />
-        </div>
-        <button onClick={logout}
-          className="sidebar-link w-full text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 mt-1">
-          <LogOut className="w-5 h-5" />
-          Cerrar Sesión
-        </button>
+        )}
       </div>
     </aside>
   );
 
-  if (isMobile) {
+  if (breakpoint === 'mobile') {
     return (
       <>
         {/* Mobile Header */}
