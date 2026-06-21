@@ -189,3 +189,125 @@ export const exportarExcel = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const obtenerResumen = async (req, res) => {
+  try {
+    const { rows } = await query(`
+      WITH RankedMediciones AS (
+        SELECT *,
+               ROW_NUMBER() OVER (PARTITION BY indicador_id ORDER BY creado_en DESC, periodo DESC) as rn
+        FROM mediciones_indicador
+      )
+      SELECT i.id, i.codigo, i.nombre, i.meta, i.unidad_medida, i.estado, i.tipo, i.frecuencia_medicion,
+             pr.nombre AS proceso_nombre,
+             m1.periodo AS ultimo_periodo, m1.valor_real AS ultimo_valor_real, m1.valor_esperado AS ultimo_valor_esperado, m1.cumplimiento AS ultimo_cumplimiento,
+             m2.cumplimiento AS penultimo_cumplimiento,
+             (
+               SELECT COALESCE(json_agg(m_sub), '[]'::json)
+               FROM (
+                 SELECT periodo, cumplimiento 
+                 FROM mediciones_indicador 
+                 WHERE indicador_id = i.id 
+                 ORDER BY periodo DESC 
+                 LIMIT 6
+               ) m_sub
+             ) AS mediciones_json
+      FROM indicadores i
+      LEFT JOIN procesos pr ON i.proceso_id = pr.id
+      LEFT JOIN RankedMediciones m1 ON m1.indicador_id = i.id AND m1.rn = 1
+      LEFT JOIN RankedMediciones m2 ON m2.indicador_id = i.id AND m2.rn = 2
+      ORDER BY i.codigo
+    `);
+
+    const result = rows.map(row => {
+      let tendencia = 'estable';
+      if (row.ultimo_cumplimiento != null && row.penultimo_cumplimiento != null) {
+        const diff = parseFloat(row.ultimo_cumplimiento) - parseFloat(row.penultimo_cumplimiento);
+        if (diff > 0) tendencia = 'subiendo';
+        else if (diff < 0) tendencia = 'bajando';
+      }
+      return {
+        id: row.id,
+        codigo: row.codigo,
+        nombre: row.nombre,
+        meta: row.meta != null ? parseFloat(row.meta) : null,
+        unidad_medida: row.unidad_medida,
+        estado: row.estado,
+        tipo: row.tipo,
+        frecuencia_medicion: row.frecuencia_medicion,
+        proceso_nombre: row.proceso_nombre,
+        ultimo_periodo: row.ultimo_periodo,
+        ultimo_valor_real: row.ultimo_valor_real != null ? parseFloat(row.ultimo_valor_real) : null,
+        ultimo_valor_esperado: row.ultimo_valor_esperado != null ? parseFloat(row.ultimo_valor_esperado) : null,
+        ultimo_cumplimiento: row.ultimo_cumplimiento != null ? parseFloat(row.ultimo_cumplimiento) : null,
+        tendencia,
+        mediciones: (row.mediciones_json || []).reverse().map(m => ({
+          periodo: m.periodo,
+          cumplimiento: m.cumplimiento != null ? parseFloat(m.cumplimiento) : null
+        }))
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const exportarCSV = async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT i.codigo AS indicador_codigo, i.nombre AS indicador_nombre, i.unidad_medida,
+             m.periodo, m.valor_real, m.valor_esperado, m.cumplimiento, m.analisis_tendencia, m.creado_en
+      FROM mediciones_indicador m
+      JOIN indicadores i ON m.indicador_id = i.id
+      ORDER BY i.codigo, m.periodo ASC
+    `);
+
+    const escapeCSV = (val) => {
+      if (val == null) return '';
+      let str = val.toString();
+      if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        str = str.replace(/"/g, '""');
+        return `"${str}"`;
+      }
+      return str;
+    };
+
+    const headers = [
+      'Codigo Indicador',
+      'Nombre Indicador',
+      'Periodo',
+      'Valor Real',
+      'Valor Esperado',
+      'Unidad Medida',
+      'Cumplimiento (%)',
+      'Analisis Tendencia',
+      'Fecha Registro'
+    ];
+
+    let csvContent = '\uFEFF'; // UTF-8 BOM
+    csvContent += headers.join(',') + '\n';
+
+    for (const row of rows) {
+      const line = [
+        escapeCSV(row.indicador_codigo),
+        escapeCSV(row.indicador_nombre),
+        escapeCSV(row.periodo),
+        escapeCSV(row.valor_real),
+        escapeCSV(row.valor_esperado),
+        escapeCSV(row.unidad_medida),
+        escapeCSV(row.cumplimiento != null ? `${row.cumplimiento}%` : ''),
+        escapeCSV(row.analisis_tendencia),
+        escapeCSV(row.creado_en ? new Date(row.creado_en).toISOString() : '')
+      ];
+      csvContent += line.join(',') + '\n';
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=mediciones_indicadores.csv');
+    res.status(200).send(csvContent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

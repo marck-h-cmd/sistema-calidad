@@ -99,3 +99,163 @@ export const reporte = async (req, res) => {
     res.send(pdf);
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
+
+// GET /encuestas/:id/resultados-detalle
+// Retorna por cada pregunta: promedio, total_respuestas, distribución de valores y textos abiertos
+export const resultadosDetalle = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verificar que la encuesta existe
+    const enc = await query('SELECT * FROM encuestas WHERE id=$1', [id]);
+    if (!enc.rows.length) return res.status(404).json({ error: 'Encuesta no encontrada' });
+
+    // Preguntas con estadísticas numéricas agregadas
+    const { rows: preguntas } = await query(`
+      SELECT
+        p.id,
+        p.texto,
+        p.tipo,
+        p.orden,
+        AVG(r.valor_numerico) FILTER (WHERE r.valor_numerico IS NOT NULL) AS promedio,
+        COUNT(r.id) AS total_respuestas,
+        COUNT(r.id) FILTER (WHERE r.valor_numerico = 1) AS v1,
+        COUNT(r.id) FILTER (WHERE r.valor_numerico = 2) AS v2,
+        COUNT(r.id) FILTER (WHERE r.valor_numerico = 3) AS v3,
+        COUNT(r.id) FILTER (WHERE r.valor_numerico = 4) AS v4,
+        COUNT(r.id) FILTER (WHERE r.valor_numerico = 5) AS v5,
+        COUNT(r.id) FILTER (WHERE r.valor_numerico = 1 AND p.tipo = 'si_no') AS no_count,
+        COUNT(r.id) FILTER (WHERE r.valor_numerico >= 1 AND p.tipo = 'si_no') AS si_no_total
+      FROM preguntas_encuesta p
+      LEFT JOIN respuestas_encuesta r ON p.id = r.pregunta_id
+      WHERE p.encuesta_id = $1
+      GROUP BY p.id, p.texto, p.tipo, p.orden
+      ORDER BY p.orden
+    `, [id]);
+
+    // Para preguntas abiertas, obtener las últimas 5 respuestas de texto
+    const resultado = await Promise.all(preguntas.map(async (p) => {
+      const item = {
+        id: p.id,
+        texto: p.texto,
+        tipo: p.tipo,
+        orden: p.orden,
+        promedio: p.promedio != null ? parseFloat(parseFloat(p.promedio).toFixed(2)) : null,
+        total_respuestas: parseInt(p.total_respuestas, 10),
+      };
+
+      if (p.tipo === 'likert_5' || p.tipo === 'numerica') {
+        item.distribucion = [
+          { valor: 1, count: parseInt(p.v1, 10) },
+          { valor: 2, count: parseInt(p.v2, 10) },
+          { valor: 3, count: parseInt(p.v3, 10) },
+          { valor: 4, count: parseInt(p.v4, 10) },
+          { valor: 5, count: parseInt(p.v5, 10) },
+        ];
+      }
+
+      if (p.tipo === 'si_no') {
+        const noCount = parseInt(p.no_count, 10);
+        const total = parseInt(p.total_respuestas, 10);
+        const siCount = total - noCount;
+        item.si_count = siCount;
+        item.no_count = noCount;
+      }
+
+      if (p.tipo === 'abierta') {
+        const { rows: textos } = await query(`
+          SELECT valor_texto, enviado_en
+          FROM respuestas_encuesta
+          WHERE pregunta_id = $1
+            AND valor_texto IS NOT NULL
+            AND valor_texto <> ''
+          ORDER BY enviado_en DESC
+          LIMIT 5
+        `, [p.id]);
+        item.respuestas_texto = textos.map(t => t.valor_texto);
+      }
+
+      return item;
+    }));
+
+    res.json(resultado);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+// GET /encuestas/dashboard
+// Promedio general, total respuestas, mejor y peor encuesta, tendencia mensual de satisfacción
+export const dashboardGlobal = async (req, res) => {
+  try {
+    // Estadísticas globales de todas las encuestas activas (publicadas / en_curso)
+    const { rows: global } = await query(`
+      SELECT
+        AVG(r.valor_numerico) FILTER (WHERE r.valor_numerico IS NOT NULL) AS promedio_general,
+        COUNT(r.id) AS total_respuestas,
+        COUNT(DISTINCT r.encuesta_id) AS encuestas_activas
+      FROM respuestas_encuesta r
+      JOIN encuestas e ON e.id = r.encuesta_id
+      WHERE e.estado IN ('publicada', 'en_curso', 'cerrada')
+    `);
+
+    // Mejor y peor encuesta (por promedio de respuestas numéricas)
+    const { rows: ranking } = await query(`
+      SELECT
+        e.id,
+        e.titulo,
+        e.codigo,
+        AVG(r.valor_numerico) FILTER (WHERE r.valor_numerico IS NOT NULL) AS promedio,
+        COUNT(r.id) AS total_respuestas
+      FROM encuestas e
+      LEFT JOIN respuestas_encuesta r ON e.id = r.encuesta_id
+      WHERE e.estado IN ('publicada', 'en_curso', 'cerrada')
+      GROUP BY e.id, e.titulo, e.codigo
+      HAVING COUNT(r.id) > 0
+      ORDER BY promedio DESC
+    `);
+
+    const mejor = ranking.length > 0 ? ranking[0] : null;
+    const peor  = ranking.length > 1 ? ranking[ranking.length - 1] : null;
+
+    // Tendencia mensual de satisfacción — últimos 6 meses
+    const { rows: tendencia } = await query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', r.enviado_en), 'YYYY-MM') AS mes,
+        ROUND(AVG(r.valor_numerico) FILTER (WHERE r.valor_numerico IS NOT NULL)::numeric, 2) AS promedio_mes,
+        COUNT(r.id) AS respuestas_mes
+      FROM respuestas_encuesta r
+      JOIN encuestas e ON e.id = r.encuesta_id
+      WHERE e.estado IN ('publicada', 'en_curso', 'cerrada')
+        AND r.enviado_en >= NOW() - INTERVAL '6 months'
+        AND r.valor_numerico IS NOT NULL
+      GROUP BY DATE_TRUNC('month', r.enviado_en)
+      ORDER BY DATE_TRUNC('month', r.enviado_en) ASC
+    `);
+
+    res.json({
+      promedio_general: global[0]?.promedio_general != null
+        ? parseFloat(parseFloat(global[0].promedio_general).toFixed(2))
+        : null,
+      total_respuestas: parseInt(global[0]?.total_respuestas || 0, 10),
+      encuestas_activas: parseInt(global[0]?.encuestas_activas || 0, 10),
+      mejor_encuesta: mejor ? {
+        id: mejor.id,
+        titulo: mejor.titulo,
+        codigo: mejor.codigo,
+        promedio: parseFloat(parseFloat(mejor.promedio).toFixed(2)),
+        total_respuestas: parseInt(mejor.total_respuestas, 10),
+      } : null,
+      peor_encuesta: peor ? {
+        id: peor.id,
+        titulo: peor.titulo,
+        codigo: peor.codigo,
+        promedio: parseFloat(parseFloat(peor.promedio).toFixed(2)),
+        total_respuestas: parseInt(peor.total_respuestas, 10),
+      } : null,
+      tendencia_mensual: tendencia.map(t => ({
+        mes: t.mes,
+        promedio: parseFloat(t.promedio_mes),
+        respuestas: parseInt(t.respuestas_mes, 10),
+      })),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
