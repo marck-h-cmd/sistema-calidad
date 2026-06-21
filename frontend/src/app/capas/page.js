@@ -28,20 +28,30 @@ export default function CapasPage() {
 
   const cargar = async () => {
     try {
-      const [c, u, h] = await Promise.all([
-        api.get('/capas'),
-        api.get('/usuarios'),
-        api.get('/hallazgos'),
-      ]);
-      setCapas(c.data); setUsuarios(u.data); setHallazgos(h.data);
-    } catch {}
+      const resCapas = await api.get('/capas');
+      setCapas(resCapas.data || []);
+    } catch (e) {
+      console.error("Error al cargar capas:", e);
+    }
+    try {
+      const resUsuarios = await api.get('/usuarios');
+      setUsuarios(resUsuarios.data || []);
+    } catch (e) {
+      console.error("Error al cargar usuarios:", e);
+    }
+    try {
+      const resHallazgos = await api.get('/hallazgos');
+      setHallazgos(resHallazgos.data || []);
+    } catch (e) {
+      console.error("Error al cargar hallazgos:", e);
+    }
   };
 
   const abrirModal = () => {
     setForm({
       codigo: '', tipo: 'correctiva', descripcion: '',
       causa_raiz: '', accion_propuesta: '',
-      responsable_id: usuarios[0]?.id || '',
+      responsable_id: '',
       hallazgo_id: '', fecha_implementacion: '', fecha_verificacion: '',
     });
     setError(''); setModal(true);

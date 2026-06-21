@@ -9,6 +9,31 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE SCHEMA IF NOT EXISTS sgc;
 SET search_path TO sgc;
 
+-- Drop existing tables to allow re-seeding
+DROP TABLE IF EXISTS respuestas_encuesta CASCADE;
+DROP TABLE IF EXISTS preguntas_encuesta CASCADE;
+DROP TABLE IF EXISTS encuestas CASCADE;
+DROP TABLE IF EXISTS mediciones_indicador CASCADE;
+DROP TABLE IF EXISTS indicadores CASCADE;
+DROP TABLE IF EXISTS planes_mitigacion CASCADE;
+DROP TABLE IF EXISTS historial_riesgos CASCADE;
+DROP TABLE IF EXISTS riesgos CASCADE;
+DROP TABLE IF EXISTS seguimientos_capa CASCADE;
+DROP TABLE IF EXISTS capas CASCADE;
+DROP TABLE IF EXISTS hallazgos CASCADE;
+DROP TABLE IF EXISTS planes_auditoria CASCADE;
+DROP TABLE IF EXISTS evaluaciones_criterio CASCADE;
+DROP TABLE IF EXISTS autoevaluaciones CASCADE;
+DROP TABLE IF EXISTS factores_criterio CASCADE;
+DROP TABLE IF EXISTS estandares_acreditacion CASCADE;
+DROP TABLE IF EXISTS documentos CASCADE;
+DROP TABLE IF EXISTS actividades_proceso CASCADE;
+DROP TABLE IF EXISTS procesos CASCADE;
+DROP TABLE IF EXISTS macroprocesos CASCADE;
+DROP TABLE IF EXISTS tipos_documento CASCADE;
+DROP TABLE IF EXISTS usuarios CASCADE;
+
+
 -- ============================================================
 -- USUARIOS
 -- ============================================================
@@ -245,6 +270,19 @@ CREATE TABLE capas (
 );
 
 -- ============================================================
+-- SEGUIMIENTOS CAPA
+-- ============================================================
+CREATE TABLE seguimientos_capa (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  capa_id UUID NOT NULL REFERENCES capas(id) ON DELETE CASCADE,
+  fecha_seguimiento DATE NOT NULL,
+  avance INTEGER NOT NULL CHECK (avance BETWEEN 0 AND 100),
+  observaciones TEXT,
+  creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  creado_por UUID REFERENCES usuarios(id)
+);
+
+-- ============================================================
 -- RIESGOS
 -- ============================================================
 CREATE TABLE riesgos (
@@ -261,6 +299,18 @@ CREATE TABLE riesgos (
   modificado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   creado_por UUID REFERENCES usuarios(id),
   modificado_por UUID REFERENCES usuarios(id)
+);
+
+-- ============================================================
+-- HISTORIAL RIESGOS
+-- ============================================================
+CREATE TABLE historial_riesgos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  riesgo_id UUID NOT NULL REFERENCES riesgos(id) ON DELETE CASCADE,
+  estado_anterior VARCHAR(20),
+  estado_nuevo VARCHAR(20),
+  cambiado_por UUID REFERENCES usuarios(id),
+  fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================
@@ -575,4 +625,131 @@ SELECT e.id, v.pregunta, v.tipo, v.orden, TRUE FROM
 JOIN encuestas e ON e.codigo = v.enc_codigo;
 
 -- Respuestas de Encuestas (simuladas)
--- Se insertarán posteriormente cuando se conozcan los IDs de las preguntas
+-- DOC-001
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 4, '2026-01-10 10:00:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=1 AND u.codigo='DOC-001';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 3, '2026-01-10 10:02:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=2 AND u.codigo='DOC-001';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, valor_texto, enviado_en)
+SELECT e.id, p.id, u.id, 2, 'si', '2026-01-10 10:04:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=3 AND u.codigo='DOC-001';
+
+-- DOC-002
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 5, '2026-02-15 11:30:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=1 AND u.codigo='DOC-002';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 5, '2026-02-15 11:32:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=2 AND u.codigo='DOC-002';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, valor_texto, enviado_en)
+SELECT e.id, p.id, u.id, 2, 'si', '2026-02-15 11:34:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=3 AND u.codigo='DOC-002';
+
+-- DOC-003
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 3, '2026-03-20 09:15:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=1 AND u.codigo='DOC-003';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 2, '2026-03-20 09:17:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=2 AND u.codigo='DOC-003';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, valor_texto, enviado_en)
+SELECT e.id, p.id, u.id, 1, 'no', '2026-03-20 09:19:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=3 AND u.codigo='DOC-003';
+
+-- DOC-004
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 4, '2026-04-05 14:22:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=1 AND u.codigo='DOC-004';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 4, '2026-04-05 14:24:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=2 AND u.codigo='DOC-004';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, valor_texto, enviado_en)
+SELECT e.id, p.id, u.id, 2, 'si', '2026-04-05 14:26:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-001' AND p.encuesta_id=e.id AND p.orden=3 AND u.codigo='DOC-004';
+
+-- EST-001
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 5, '2026-03-11 16:00:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-002' AND p.encuesta_id=e.id AND p.orden=1 AND u.codigo='EST-001';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 4, '2026-03-11 16:02:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-002' AND p.encuesta_id=e.id AND p.orden=2 AND u.codigo='EST-001';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, valor_texto, enviado_en)
+SELECT e.id, p.id, u.id, 2, 'si', '2026-03-11 16:04:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-002' AND p.encuesta_id=e.id AND p.orden=3 AND u.codigo='EST-001';
+
+-- EST-002
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 4, '2026-04-12 17:10:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-002' AND p.encuesta_id=e.id AND p.orden=1 AND u.codigo='EST-002';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 5, '2026-04-12 17:12:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-002' AND p.encuesta_id=e.id AND p.orden=2 AND u.codigo='EST-002';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, valor_texto, enviado_en)
+SELECT e.id, p.id, u.id, 2, 'si', '2026-04-12 17:14:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-002' AND p.encuesta_id=e.id AND p.orden=3 AND u.codigo='EST-002';
+
+-- EST-003
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 3, '2026-05-18 10:45:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-002' AND p.encuesta_id=e.id AND p.orden=1 AND u.codigo='EST-003';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, enviado_en)
+SELECT e.id, p.id, u.id, 3, '2026-05-18 10:47:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-002' AND p.encuesta_id=e.id AND p.orden=2 AND u.codigo='EST-003';
+INSERT INTO respuestas_encuesta (encuesta_id, pregunta_id, usuario_id, valor_numerico, valor_texto, enviado_en)
+SELECT e.id, p.id, u.id, 1, 'no', '2026-05-18 10:49:00'::timestamp FROM encuestas e, preguntas_encuesta p, usuarios u WHERE e.codigo='ENC-002' AND p.encuesta_id=e.id AND p.orden=3 AND u.codigo='EST-003';
+
+-- Mediciones Indicador
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-01', 88.50, 90.00, 98.33, 'Tendencia estable con ligera baja en la segunda semana' FROM indicadores WHERE codigo='IND-003';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-02', 91.20, 90.00, 101.33, 'Mejora en la velocidad de respuesta tras capacitacion' FROM indicadores WHERE codigo='IND-003';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-03', 92.50, 90.00, 102.77, 'Se mantiene la tendencia positiva superando la meta' FROM indicadores WHERE codigo='IND-003';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-04', 89.00, 90.00, 98.89, 'Leve caida por acumulacion de expedientes' FROM indicadores WHERE codigo='IND-003';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-05', 94.10, 90.00, 104.55, 'Maximo historico del semestre gracias a nueva directiva' FROM indicadores WHERE codigo='IND-003';
+
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-01', 13.80, 14.50, 95.17, 'Promedio ligeramente por debajo del objetivo' FROM indicadores WHERE codigo='IND-004';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-02', 14.10, 14.50, 97.24, 'Incremento de promedios debido a reforzamiento academico' FROM indicadores WHERE codigo='IND-004';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-03', 14.60, 14.50, 100.69, 'Meta superada gracias al programa de tutorias' FROM indicadores WHERE codigo='IND-004';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-04', 14.20, 14.50, 97.93, 'Fluctuacion normal dentro del rango esperado' FROM indicadores WHERE codigo='IND-004';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-05', 14.85, 14.50, 102.41, 'Excelente desempeño en examenes parciales' FROM indicadores WHERE codigo='IND-004';
+
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2023-I', 8.20, 8.50, 96.47, 'Nivel optimo inicial de satisfaccion docente' FROM indicadores WHERE codigo='IND-002';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2023-II', 8.45, 8.50, 99.41, 'Crecimiento tras implementar mejoras en infraestructura' FROM indicadores WHERE codigo='IND-002';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024-I', 8.60, 8.50, 101.18, 'Meta superada tras actualizacion de incentivos academicos' FROM indicadores WHERE codigo='IND-002';
+
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2022', 82.00, 85.00, 96.47, 'Año post-pandemia con ligera deserción' FROM indicadores WHERE codigo='IND-001';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2023', 84.80, 85.00, 99.76, 'Recuperacion progresiva' FROM indicadores WHERE codigo='IND-001';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024', 86.20, 85.00, 101.41, 'Meta superada gracias al acompañamiento tutorial integral' FROM indicadores WHERE codigo='IND-001';
+
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2023', 94.10, 95.00, 99.05, 'Evaluaciones docentes con calificaciones muy altas' FROM indicadores WHERE codigo='IND-005';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024', 96.30, 95.00, 101.37, 'Meta lograda por capacitacion en herramientas virtuales' FROM indicadores WHERE codigo='IND-005';
+
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2023', 21.00, 25.00, 84.00, 'Publicaciones estables en revistas indexadas' FROM indicadores WHERE codigo='IND-006';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024', 27.00, 25.00, 108.00, 'Meta superada gracias a bonificaciones especiales' FROM indicadores WHERE codigo='IND-006';
+
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2023', 7.50, 8.00, 93.75, 'Presupuesto de investigacion ejecutado al 90%' FROM indicadores WHERE codigo='IND-007';
+INSERT INTO mediciones_indicador (indicador_id, periodo, valor_real, valor_esperado, cumplimiento, analisis_tendencia)
+SELECT id, '2024', 8.20, 8.00, 102.50, 'Incremento de fondos concursables para investigacion' FROM indicadores WHERE codigo='IND-007';
+
+-- Seguimientos CAPA
+INSERT INTO seguimientos_capa (capa_id, fecha_seguimiento, avance, observaciones, creado_por)
+SELECT id, '2026-01-20'::date, 20, 'Avance inicial en el relevamiento de procesos actuales.', creado_por FROM capas WHERE codigo='CAPA-001';
+INSERT INTO seguimientos_capa (capa_id, fecha_seguimiento, avance, observaciones, creado_por)
+SELECT id, '2026-02-10'::date, 50, 'Se han estandarizado los formatos para la solicitud de adquisiciones.', creado_por FROM capas WHERE codigo='CAPA-001';
+INSERT INTO seguimientos_capa (capa_id, fecha_seguimiento, avance, observaciones, creado_por)
+SELECT id, '2026-03-05'::date, 80, 'Plan piloto implementado en el area administrativa de Ingenieria.', creado_por FROM capas WHERE codigo='CAPA-001';
+
+INSERT INTO seguimientos_capa (capa_id, fecha_seguimiento, avance, observaciones, creado_por)
+SELECT id, '2026-02-15'::date, 30, 'Primera revision con el equipo administrativo. Avance de acuerdos.', creado_por FROM capas WHERE codigo='CAPA-003';
+INSERT INTO seguimientos_capa (capa_id, fecha_seguimiento, avance, observaciones, creado_por)
+SELECT id, '2026-03-12'::date, 70, 'Evaluaciones academicas completadas al 70%. Envio de recordatorios.', creado_por FROM capas WHERE codigo='CAPA-003';
+
+-- Historial Riesgos
+INSERT INTO historial_riesgos (riesgo_id, estado_anterior, estado_nuevo, cambiado_por)
+SELECT id, 'activo', 'mitigado', creado_por FROM riesgos WHERE codigo='RIESGO-003';
+INSERT INTO historial_riesgos (riesgo_id, estado_anterior, estado_nuevo, cambiado_por)
+SELECT id, 'activo', 'aceptado', creado_por FROM riesgos WHERE codigo='RIESGO-004';
+INSERT INTO historial_riesgos (riesgo_id, estado_anterior, estado_nuevo, cambiado_por)
+SELECT id, 'activo', 'mitigado', creado_por FROM riesgos WHERE codigo='RIESGO-007';

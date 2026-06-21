@@ -9,7 +9,10 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const sqlFilePath = path.join(__dirname, '../../init-db/init.sql');
+let sqlFilePath = path.join(__dirname, '../../init-db/init.sql');
+if (!fs.existsSync(sqlFilePath)) {
+  sqlFilePath = path.join(__dirname, '../init-db/init.sql');
+}
 
 async function initDb() {
   console.log('🔄 Inicializando base de datos local...');

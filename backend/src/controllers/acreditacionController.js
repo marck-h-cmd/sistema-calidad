@@ -168,11 +168,12 @@ export const listarRequisitos = async (req, res) => {
 export const crearRequisito = async (req, res) => {
   try {
     const { descripcion, categoria, certificacion_id } = req.body;
+    const nombreTruncado = descripcion ? descripcion.substring(0, 255) : '';
     const { rows } = await query(
       `INSERT INTO factores_criterio (estandar_id, codigo, nombre, descripcion, creado_por)
-       VALUES ($1, $2, $3, $3, $4)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING id, codigo AS categoria, nombre AS descripcion, 'Coordinador' AS responsable, null AS fecha_limite, 'pendiente' AS estado`,
-      [certificacion_id, categoria, descripcion, req.usuario.id]
+      [certificacion_id, categoria, nombreTruncado, descripcion, req.usuario.id]
     );
     res.status(201).json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
