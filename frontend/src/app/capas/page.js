@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import ProtectedLayout from '@/components/Layout/ProtectedLayout';
+import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
-import { X, Download, Plus } from 'lucide-react';
+import { X, Download, Plus, Search } from 'lucide-react';
 
 const estadoColor = {
   registrada: 'badge-blue', en_implementacion: 'badge-yellow',
@@ -15,7 +16,11 @@ export default function CapasPage() {
   const [capas, setCapas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [hallazgos, setHallazgos] = useState([]);
+  const { usuario } = useAuth();
+  const esAuditorOGestion = ['admin', 'gestor_calidad', 'auditor'].includes(usuario?.rol);
+
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroTexto, setFiltroTexto] = useState('');
   const [modal, setModal] = useState(false);
   const [modalSeg, setModalSeg] = useState(null);
   const [capaExpandida, setCapaExpandida] = useState(null);
@@ -97,10 +102,20 @@ export default function CapasPage() {
   };
 
   const capasFiltradas = capas.filter(c => {
+    let cumpleEstado = true;
     if (filtroEstado === 'vencidas') {
-      return c.fecha_implementacion && new Date(c.fecha_implementacion) < new Date() && !['cerrada', 'verificada', 'implementada'].includes(c.estado);
+      cumpleEstado = c.fecha_implementacion && new Date(c.fecha_implementacion) < new Date() && !['cerrada', 'verificada', 'implementada'].includes(c.estado);
+    } else if (filtroEstado) {
+      cumpleEstado = c.estado === filtroEstado;
     }
-    return filtroEstado ? c.estado === filtroEstado : true;
+    let cumpleTexto = true;
+    if (filtroTexto) {
+      const p = filtroTexto.toLowerCase();
+      cumpleTexto = c.codigo?.toLowerCase().includes(p) || 
+                    c.descripcion?.toLowerCase().includes(p) ||
+                    c.hallazgo_descripcion?.toLowerCase().includes(p);
+    }
+    return cumpleEstado && cumpleTexto;
   });
 
   const stats = {
@@ -123,10 +138,12 @@ export default function CapasPage() {
               <Download className="w-4 h-4" />
               Reporte PDF
             </button>
-            <button className="btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={abrirModal}>
-              <Plus className="w-4 h-4" />
-              Nueva CAPA
-            </button>
+            {esAuditorOGestion && (
+              <button className="btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={abrirModal}>
+                <Plus className="w-4 h-4" />
+                Nueva CAPA
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -147,16 +164,30 @@ export default function CapasPage() {
           ))}
         </div>
 
-        {/* Filtro */}
-        <div className="card px-4 py-3.5 flex flex-wrap gap-3 items-center">
-          <span className="text-sm text-slate-500 dark:text-slate-400">Filtrar por estado:</span>
-          <div className="flex gap-2 flex-wrap">
-            {['', 'vencidas', 'registrada', 'en_implementacion', 'implementada', 'verificada', 'cerrada', 'rechazada'].map(s => (
-              <button key={s} onClick={() => setFiltroEstado(s)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${filtroEstado === s ? 'bg-blue-600 text-white' : s === 'vencidas' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
-                {s === 'vencidas' ? 'Vencidas' : (s ? s.replace('_', ' ') : 'Todas')}
-              </button>
-            ))}
+        {/* Filtros */}
+        <div className="card px-4 py-3.5 flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">Filtrar por estado:</span>
+            <div className="flex gap-2 flex-wrap">
+              {['', 'vencidas', 'registrada', 'en_implementacion', 'implementada', 'verificada', 'cerrada', 'rechazada'].map(s => (
+                <button key={s} onClick={() => setFiltroEstado(s)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${filtroEstado === s ? 'bg-blue-600 text-white' : s === 'vencidas' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
+                  {s === 'vencidas' ? 'Vencidas' : (s ? s.replace('_', ' ') : 'Todas')}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="relative w-full sm:w-64 shrink-0">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-slate-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar por código, descripción..."
+              className="input pl-9 text-sm py-1.5"
+              value={filtroTexto}
+              onChange={e => setFiltroTexto(e.target.value)}
+            />
           </div>
         </div>
 
@@ -184,18 +215,22 @@ export default function CapasPage() {
                         onClick={() => verSeguimientos(c.id)}>
                         {capaExpandida === c.id ? 'Ocultar Seguimientos' : 'Ver Seguimientos'}
                       </button>
-                      <button className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 px-3 py-1 rounded-lg font-medium transition-colors flex items-center gap-1"
-                        onClick={() => { setFormSeg({ fecha_seguimiento: new Date().toISOString().split('T')[0], avance: c.avance || 0, observaciones: '' }); setModalSeg(c.id); }}>
-                        <Plus className="w-3 h-3" /> Seguimiento
-                      </button>
-                      <select
-                        className="text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        value={c.estado}
-                        onChange={e => cambiarEstado(c.id, e.target.value)}>
-                        {['registrada', 'en_implementacion', 'implementada', 'verificada', 'cerrada', 'rechazada'].map(s => (
-                          <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                        ))}
-                      </select>
+                      {esAuditorOGestion && (
+                        <>
+                          <button className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 px-3 py-1 rounded-lg font-medium transition-colors flex items-center gap-1"
+                            onClick={() => { setFormSeg({ fecha_seguimiento: new Date().toISOString().split('T')[0], avance: c.avance || 0, observaciones: '' }); setModalSeg(c.id); }}>
+                            <Plus className="w-3 h-3" /> Seguimiento
+                          </button>
+                          <select
+                            className="text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            value={c.estado}
+                            onChange={e => cambiarEstado(c.id, e.target.value)}>
+                            {['registrada', 'en_implementacion', 'implementada', 'verificada', 'cerrada', 'rechazada'].map(s => (
+                              <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                            ))}
+                          </select>
+                        </>
+                      )}
                     </div>
                   </div>
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mb-1">{c.descripcion}</p>

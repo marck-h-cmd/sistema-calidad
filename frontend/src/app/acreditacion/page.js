@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import ProtectedLayout from '@/components/Layout/ProtectedLayout';
+import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { X, Plus, Award, CheckCircle2, ChevronRight, BarChart3, AlertCircle, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -22,6 +23,9 @@ export default function AcreditacionPage() {
   const [evalForm, setEvalForm] = useState({ cumplimiento: 'no_cumple', puntaje: '', evidencias: '', observaciones: '' });
   const [mounted, setMounted] = useState(false);
   const [calculating, setCalculating] = useState(false);
+
+  const { usuario } = useAuth();
+  const esGestion = ['admin', 'gestor_calidad'].includes(usuario?.rol);
 
   useEffect(() => {
     setMounted(true);
@@ -333,7 +337,7 @@ export default function AcreditacionPage() {
                   )}
                 </div>
                 
-                {!isEditing && (
+                {!isEditing && esGestion && (
                   <button className="btn-secondary text-xs px-3 py-1.5" onClick={() => iniciarEvaluacion(f)}>
                     Evaluar
                   </button>
@@ -413,10 +417,12 @@ export default function AcreditacionPage() {
             <h1 className="page-title">Gestión de Acreditación</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{certificaciones.length} estándares registrados</p>
           </div>
-          <button className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto" onClick={() => { setForm({ nombre: '', organismo: '', norma: '', fecha_emision: '', fecha_vencimiento: '', estado: 'activo' }); setError(''); setModal('certificacion'); }}>
-            <Plus className="w-4 h-4" />
-            Nuevo Estándar
-          </button>
+          {esGestion && (
+            <button className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto" onClick={() => { setForm({ nombre: '', organismo: '', norma: '', fecha_emision: '', fecha_vencimiento: '', estado: 'activo' }); setError(''); setModal('certificacion'); }}>
+              <Plus className="w-4 h-4" />
+              Nuevo Estándar
+            </button>
+          )}
         </div>
       </div>
 
@@ -449,7 +455,7 @@ export default function AcreditacionPage() {
               <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm truncate max-w-[240px] md:max-w-xs">
                 {certSel ? `${certSel.nombre}` : 'Seleccione un estándar'}
               </span>
-              {certSel && tabSel === 'requisitos' && (
+              {certSel && tabSel === 'requisitos' && esGestion && (
                 <button className="btn-primary text-xs py-1.5 px-3" onClick={() => { setForm({ descripcion: '', categoria: '', responsable: '', fecha_limite: '', estado: 'pendiente' }); setError(''); setModal('requisito'); }}>
                   <Plus className="w-3.5 h-3.5 inline mr-1" />
                   Nuevo Requisito
@@ -495,9 +501,13 @@ export default function AcreditacionPage() {
                     <div key={r.id} className="py-4 first:pt-0 last:pb-0">
                       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                         {r.categoria && <span className="badge badge-blue">{r.categoria}</span>}
-                        <select className="text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl px-2 py-1 cursor-pointer focus:outline-none" value={r.estado} onChange={e => cambiarEstadoRequisito(r.id, e.target.value)}>
-                          {['pendiente', 'en_proceso', 'cumplido', 'no_aplicable'].map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                        {esGestion ? (
+                          <select className="text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl px-2 py-1 cursor-pointer focus:outline-none" value={r.estado} onChange={e => cambiarEstadoRequisito(r.id, e.target.value)}>
+                            {['pendiente', 'en_proceso', 'cumplido', 'no_aplicable'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        ) : (
+                          <span className="text-xs text-slate-600 dark:text-slate-400 capitalize">{r.estado?.replace('_', ' ')}</span>
+                        )}
                       </div>
                       <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">{r.descripcion}</p>
                       <div className="flex gap-4 mt-2 text-xs text-slate-400 dark:text-slate-500 flex-wrap">
@@ -532,13 +542,15 @@ export default function AcreditacionPage() {
                         </select>
                       )}
                     </div>
-                    <button
-                      className="btn-secondary text-xs py-2"
-                      onClick={() => { setForm({ periodo: '', fecha_inicio: '', fecha_fin: '' }); setError(''); setModal('autoevaluacion'); }}
-                    >
-                      <Plus className="w-3.5 h-3.5 inline mr-1" />
-                      Nueva Autoevaluación
-                    </button>
+                    {esGestion && (
+                      <button
+                        className="btn-secondary text-xs py-2"
+                        onClick={() => { setForm({ periodo: '', fecha_inicio: '', fecha_fin: '' }); setError(''); setModal('autoevaluacion'); }}
+                      >
+                        <Plus className="w-3.5 h-3.5 inline mr-1" />
+                        Nueva Autoevaluación
+                      </button>
+                    )}
                   </div>
 
                   {autoSel && autoDetalle ? (

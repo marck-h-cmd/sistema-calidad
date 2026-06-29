@@ -111,38 +111,59 @@ export default function Sidebar({ collapsed, setCollapsed }) {
 
       {/* Nav */}
       <nav className="flex-1 py-6 px-3 overflow-y-auto space-y-6">
-        {nav.map((group) => (
-          <div key={group.group}>
-            {!isCollapsed && (
-              <p className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-2">
-                {group.group}
-              </p>
-            )}
-            {isCollapsed && (
-              <div className="w-full h-px bg-slate-200 dark:bg-slate-700 my-2" />
-            )}
-            <div className="space-y-1">
-              {group.items.map((item) => {
-                const active = isActive(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => breakpoint === 'mobile' && setMobileOpen(false)}
-                    className={`sidebar-link ${active ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 group relative' : ''}`}
-                    title={isCollapsed ? item.label : undefined}
-                  >
-                    <span className="shrink-0">{item.icon}</span>
-                    {!isCollapsed && <span className="truncate">{item.label}</span>}
-                    {isCollapsed && (
-                      <span className="sidebar-tooltip">{item.label}</span>
-                    )}
-                  </Link>
-                );
-              })}
+        {nav.map((group) => {
+          // Filtrado de grupos por rol
+          const rol = usuario?.rol;
+          const isDocenteEstudianteEgresado = ['docente', 'estudiante', 'egresado'].includes(rol);
+          
+          if (isDocenteEstudianteEgresado && (group.group === 'Control' || group.group === 'Métricas' || group.group === 'Acreditación')) {
+            // Filtrar items específicos si es necesario, pero Control y Acreditacion no son para ellos.
+            if (group.group === 'Control') return null;
+          }
+
+          const filteredItems = group.items.filter(item => {
+            if (isDocenteEstudianteEgresado) {
+              // Solo mostrar Dashboard, Documentos, Encuestas
+              return ['/dashboard', '/documentos', '/encuestas'].includes(item.href);
+            }
+            return true;
+          });
+
+          if (filteredItems.length === 0) return null;
+
+          return (
+            <div key={group.group}>
+              {!isCollapsed && (
+                <p className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-2">
+                  {group.group}
+                </p>
+              )}
+              {isCollapsed && (
+                <div className="w-full h-px bg-slate-200 dark:bg-slate-700 my-2" />
+              )}
+              <div className="space-y-1">
+                {filteredItems.map((item) => {
+                  const active = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => breakpoint === 'mobile' && setMobileOpen(false)}
+                      className={`sidebar-link ${active ? 'active' : ''} ${isCollapsed ? 'justify-center px-0 group relative' : ''}`}
+                      title={isCollapsed ? item.label : undefined}
+                    >
+                      <span className="shrink-0">{item.icon}</span>
+                      {!isCollapsed && <span className="truncate">{item.label}</span>}
+                      {isCollapsed && (
+                        <span className="sidebar-tooltip">{item.label}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Collapse Toggle (tablet & desktop) */}

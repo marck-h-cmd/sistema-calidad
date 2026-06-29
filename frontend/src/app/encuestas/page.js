@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import ProtectedLayout from '@/components/Layout/ProtectedLayout';
 import { useTheme } from 'next-themes';
 import api from '@/lib/api';
-import { X, Download, Plus, ArrowLeft, Send, CheckCircle2, Star, Users, TrendingUp, Award, AlertTriangle, MessageSquare } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { X, Download, Plus, ArrowLeft, Send, CheckCircle2, Star, Users, TrendingUp, Award, AlertTriangle, MessageSquare, Printer } from 'lucide-react';
 import {
   ComposedChart, BarChart, Bar, Cell, PieChart, Pie, Sector,
   LineChart, Line, Area,
@@ -77,6 +78,10 @@ function Modal({ title, onClose, children }) {
 export default function EncuestasPage() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const { usuario } = useAuth();
+  const esGestion = ['admin', 'gestor_calidad'].includes(usuario?.rol);
+
+  const [isExporting, setIsExporting] = useState(false);
 
   const [encuestas, setEncuestas]         = useState([]);
   const [encuestaActiva, setEncuestaActiva] = useState(null);
@@ -160,6 +165,51 @@ export default function EncuestasPage() {
       const res = await api.get('/reportes/encuestas', { responseType: 'blob' });
       Object.assign(document.createElement('a'), { href: URL.createObjectURL(res.data), download: 'encuestas.pdf' }).click();
     } catch {}
+  };
+
+  const descargarResultadosPDF = async () => {
+    if (!encuestaActiva) return;
+    try {
+      setIsExporting(true);
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+      
+      const element = document.getElementById('pdf-content');
+      if (!element) return;
+
+      const canvas = await html2canvas(element, { 
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: isDark ? '#0f172a' : '#f8fafc'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+      
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+      
+      pdf.save(`Resultados_${encuestaActiva.codigo}.pdf`);
+    } catch (err) {
+      console.error('Error generando PDF:', err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Promedio general de la encuesta activa (sobre preguntas con promedio)
@@ -358,7 +408,7 @@ export default function EncuestasPage() {
                 <ArrowLeft className="w-4 h-4" /> Volver
               </button>
             )}
-            {tab === 'lista' && (
+            {tab === 'lista' && esGestion && (
               <button className="btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={() => { setModal(true); setError(''); }}>
                 <Plus className="w-4 h-4" />
                 Nueva Encuesta
@@ -513,7 +563,7 @@ export default function EncuestasPage() {
                       {e.anonima && <><span>·</span><span className="text-emerald-600 dark:text-emerald-400">Anónima</span></>}
                     </div>
                     <div className="flex gap-2 mt-auto pt-2 border-t border-slate-100 dark:border-slate-700">
-                      {e.estado === 'borrador' && (
+                      {e.estado === 'borrador' && esGestion && (
                         <button onClick={() => publicar(e.id)} className="btn-secondary text-xs py-1.5 flex-1">Publicar</button>
                       )}
                       {e.estado === 'publicada' && (
@@ -578,7 +628,7 @@ export default function EncuestasPage() {
         {/* VISTA: RESULTADOS DETALLADOS                            */}
         {/* ═══════════════════════════════════════════════════════ */}
         {tab === 'resultados' && encuestaActiva && (
-          <div className="max-w-3xl mx-auto space-y-4">
+          <div className="max-w-3xl mx-auto space-y-4" id="pdf-content">
             {/* Header con promedio general grande */}
             <div className="card overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6">
@@ -599,13 +649,17 @@ export default function EncuestasPage() {
                 </div>
               </div>
               {/* Botón exportar PDF */}
-              <div className="px-6 py-3 bg-slate-50/80 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
+              <div className="px-6 py-3 bg-slate-50/80 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center" data-html2canvas-ignore>
                 <span className="text-xs text-slate-400 dark:text-slate-500">
                   {resultados.length} pregunta{resultados.length !== 1 ? 's' : ''} · {resultados.reduce((a, r) => a + (r.total_respuestas || 0), 0)} respuestas totales
                 </span>
-                <button className="btn-secondary flex items-center gap-2 text-xs py-1.5" onClick={descargarPDF}>
-                  <Download className="w-3.5 h-3.5" />
-                  Exportar Resultados PDF
+                <button 
+                  className={`btn-secondary flex items-center gap-2 text-xs py-1.5 ${isExporting ? 'opacity-50 cursor-wait' : ''}`}
+                  onClick={descargarResultadosPDF}
+                  disabled={isExporting}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  {isExporting ? 'Generando PDF...' : 'Descargar Resultados PDF'}
                 </button>
               </div>
             </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import ProtectedLayout from '@/components/Layout/ProtectedLayout';
 import { useTheme } from 'next-themes';
+import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { X, Download, Plus, TrendingUp, CheckCircle, BarChart2, Activity } from 'lucide-react';
 import {
@@ -43,6 +44,9 @@ export default function IndicadoresPage() {
   const [medForm, setMedForm]         = useState({ periodo:'', valor_real:'', valor_esperado:'', analisis_tendencia:'' });
   const [error, setError]             = useState('');
   const [saving, setSaving]           = useState(false);
+
+  const { usuario } = useAuth();
+  const esGestion = ['admin', 'gestor_calidad'].includes(usuario?.rol);
 
   // Tarea 2 States
   const [selectedYear, setSelectedYear] = useState('Todos');
@@ -213,13 +217,15 @@ export default function IndicadoresPage() {
               <Download className="w-4 h-4" />
               PDF
             </button>
-            <button className="btn-primary flex items-center gap-2" onClick={() => {
-              setForm({ codigo:'', nombre:'', descripcion:'', tipo:'eficacia', meta:'', unidad_medida:'%', frecuencia_medicion:'mensual', proceso_id:'' });
-              setError(''); setModal('indicador');
-            }}>
-              <Plus className="w-4 h-4" />
-              Nuevo Indicador
-            </button>
+            {esGestion && (
+              <button className="btn-primary flex items-center gap-2" onClick={() => {
+                setForm({ codigo:'', nombre:'', descripcion:'', tipo:'eficacia', meta:'', unidad_medida:'%', frecuencia_medicion:'mensual', proceso_id:'' });
+                setError(''); setModal('indicador');
+              }}>
+                <Plus className="w-4 h-4" />
+                Nuevo Indicador
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -344,11 +350,13 @@ export default function IndicadoresPage() {
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <span className={`badge ${sel.estado === 'activo' ? 'badge-green' : 'badge-gray'}`}>{sel.estado}</span>
-                      <button className="btn-secondary flex items-center gap-1 text-[11px] px-2.5 py-1" 
-                        onClick={() => { setMedForm({ periodo:'', valor_real:'', valor_esperado:'', analisis_tendencia:'' }); setModal('medicion'); }}>
-                        <Plus className="w-3.5 h-3.5" />
-                        Medición
-                      </button>
+                      {esGestion && (
+                        <button className="btn-secondary flex items-center gap-1 text-[11px] px-2.5 py-1" 
+                          onClick={() => { setMedForm({ periodo:'', valor_real:'', valor_esperado:'', analisis_tendencia:'' }); setModal('medicion'); }}>
+                          <Plus className="w-3.5 h-3.5" />
+                          Medición
+                        </button>
+                      )}
                     </div>
                   </div>
 

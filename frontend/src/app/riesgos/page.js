@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import ProtectedLayout from '@/components/Layout/ProtectedLayout';
+import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { X, Download, Plus } from 'lucide-react';
 
@@ -20,6 +21,9 @@ const calcularNivel = (p, i) => {
 };
 
 export default function RiesgosPage() {
+  const { usuario } = useAuth();
+  const esGestion = ['admin', 'gestor_calidad'].includes(usuario?.rol);
+
   const [riesgos, setRiesgos] = useState([]);
   const [procesos, setProcesos] = useState([]);
   const [filtroNivel, setFiltroNivel] = useState('');
@@ -109,10 +113,12 @@ export default function RiesgosPage() {
               <Download className="w-4 h-4" />
               Reporte PDF
             </button>
-            <button className="btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={abrirModal}>
-              <Plus className="w-4 h-4" />
-              Nuevo Riesgo
-            </button>
+            {esGestion && (
+              <button className="btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none" onClick={abrirModal}>
+                <Plus className="w-4 h-4" />
+                Nuevo Riesgo
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -225,19 +231,25 @@ export default function RiesgosPage() {
                     </td>
                     <td className="table-cell"><span className={`badge ${cfg.color}`}>{nivel.toUpperCase()}</span></td>
                     <td className="table-cell">
-                      <select className="text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl px-2 py-1"
-                        value={r.estado} onChange={e => cambiarEstado(r.id, e.target.value)}>
-                        {['activo', 'mitigado', 'aceptado', 'eliminado'].map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                      {esGestion ? (
+                        <select className="text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl px-2 py-1"
+                          value={r.estado} onChange={e => cambiarEstado(r.id, e.target.value)}>
+                          {['activo', 'mitigado', 'aceptado', 'eliminado'].map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      ) : (
+                        <span className="text-xs text-slate-600 dark:text-slate-400 capitalize">{r.estado}</span>
+                      )}
                     </td>
                     <td className="table-cell">
                       <div className="flex items-center gap-2">
                         <button onClick={() => verHistorial(r.id)} className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-medium">
                           {riesgoExpandido === r.id ? 'Ocultar Historial' : 'Historial'}
                         </button>
-                        <button onClick={() => setMitigModal(r.id)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs font-medium">
-                          + Mitigación
-                        </button>
+                        {esGestion && (
+                          <button onClick={() => setMitigModal(r.id)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs font-medium">
+                            + Mitigación
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
