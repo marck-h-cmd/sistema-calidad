@@ -8,20 +8,20 @@ import { X, Download, Plus, FileText, Link, ChevronRight, ArrowDown, Layers, Map
 const TIPO_META = {
   estrategico: {
     label: 'Estratégico',
-    badge: 'badge-blue',
-    border: 'border-blue-500',
-    bg: 'bg-blue-50 dark:bg-blue-950/30',
-    chip: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60 border border-blue-200 dark:border-blue-700',
-    header: 'bg-gradient-to-r from-blue-600 to-blue-700',
+    badge: 'badge-violet',
+    border: 'border-violet-500',
+    bg: 'bg-violet-50 dark:bg-violet-950/30',
+    chip: 'bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 hover:bg-violet-200 dark:hover:bg-violet-800/60 border border-violet-200 dark:border-violet-700',
+    header: 'bg-gradient-to-r from-violet-600 to-violet-700',
     icon: '🎯',
   },
   misional: {
     label: 'Misional',
-    badge: 'badge-green',
-    border: 'border-emerald-500',
-    bg: 'bg-emerald-50 dark:bg-emerald-950/30',
-    chip: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 border border-emerald-200 dark:border-emerald-700',
-    header: 'bg-gradient-to-r from-emerald-600 to-emerald-700',
+    badge: 'badge-blue',
+    border: 'border-blue-500',
+    bg: 'bg-blue-50 dark:bg-blue-950/30',
+    chip: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60 border border-blue-200 dark:border-blue-700',
+    header: 'bg-gradient-to-r from-blue-600 to-indigo-700',
     icon: '📚',
   },
   apoyo: {
@@ -73,10 +73,13 @@ export default function ProcesosPage() {
   const [procesos, setProcesos]           = useState([]);
   const [actividades, setActividades]     = useState([]);
   const [documentos, setDocumentos]       = useState([]);   // docs del proceso seleccionado
+  const [indicadores, setIndicadores]     = useState([]);
+  const [riesgos, setRiesgos]             = useState([]);
+  const [auditorias, setAuditorias]       = useState([]);
   const [todosDocumentos, setTodosDocumentos] = useState([]); // para asociar
   const [procesoSel, setProcesoSel]       = useState(null);
-  const [vistaTab, setVistaTab]           = useState('tabla');  // 'tabla' | 'mapa'
-  const [panelTab, setPanelTab]           = useState('actividades'); // 'actividades' | 'documentos'
+  const [vistaTab, setVistaTab]           = useState('mapa');  // default to mapa
+  const [panelTab, setPanelTab]           = useState('actividades'); // 'actividades' | 'documentos' | 'indicadores' | 'riesgos' | 'auditorias'
   const [modal, setModal]                 = useState(null);
   const [form, setForm]                   = useState({});
   const [docAsociarId, setDocAsociarId]   = useState('');
@@ -101,14 +104,18 @@ export default function ProcesosPage() {
     setProcesoSel(p);
     setPanelTab('actividades');
     try {
-      const [acts, docs] = await Promise.all([
+      const [acts, docs, rels] = await Promise.all([
         api.get(`/procesos/${p.id}/actividades`),
         api.get(`/procesos/${p.id}/documentos`),
+        api.get(`/procesos/${p.id}/relaciones`),
       ]);
       setActividades(acts.data);
       setDocumentos(docs.data);
+      setIndicadores(rels.data.indicadores || []);
+      setRiesgos(rels.data.riesgos || []);
+      setAuditorias(rels.data.auditorias || []);
     } catch {
-      setActividades([]); setDocumentos([]);
+      setActividades([]); setDocumentos([]); setIndicadores([]); setRiesgos([]); setAuditorias([]);
     }
   };
 
@@ -211,71 +218,92 @@ export default function ProcesosPage() {
         </div>
 
         {/* ══════════════════════════════════════════════════════
-            VISTA MAPA: macroprocesos agrupados por tipo
+            VISTA MAPA: Estructura Arquitectónica
         ══════════════════════════════════════════════════════ */}
         {vistaTab === 'mapa' && (
-          <div className="space-y-6">
-            {TIPO_ORDEN.filter(t => macrosPorTipo[t]).map(tipo => {
-              const meta = TIPO_META[tipo] || TIPO_META.evaluacion;
+          <div className="flex flex-col items-center gap-8 bg-slate-50 dark:bg-slate-800/20 p-4 md:p-8 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-x-auto min-w-max md:min-w-0">
+            
+            {/* Función Helper para pintar las tarjetas */}
+            {(() => {
+              const renderMacroCard = (m, meta, isMisional = false) => {
+                const procs = procesosDeMacro(m.id);
+                return (
+                  <div key={m.id} className={`card overflow-hidden border-t-4 shadow-md ${isMisional ? 'shadow-blue-500/20' : ''} ${meta.border} w-72 flex shrink-0 flex-col`}>
+                    <div className={`${meta.header} px-4 py-3 flex-1`}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs text-white/70">{m.codigo}</span>
+                        <span className="text-[10px] text-white/90 bg-black/20 rounded-full px-2 py-0.5">{procs.length} proc.</span>
+                      </div>
+                      <p className={`font-bold text-white mt-1 leading-tight ${isMisional ? 'text-base' : 'text-sm'}`}>{m.nombre}</p>
+                    </div>
+                    <div className={`${meta.bg} p-3 flex flex-wrap gap-1.5 min-h-[60px]`}>
+                      {procs.length === 0 ? (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 italic m-auto">Sin procesos</p>
+                      ) : (
+                        procs.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => { setVistaTab('tabla'); verDetalle(p); }}
+                            className={`text-xs px-2 py-1 rounded font-medium transition-all shadow-sm ${meta.chip}`}
+                            title={p.objetivo || p.nombre}
+                          >
+                            {p.codigo}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              };
+
               return (
-                <div key={tipo}>
-                  {/* Etiqueta de sección de tipo */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-base">{meta.icon}</span>
-                    <h2 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wider">{meta.label}</h2>
-                    <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
-                    <span className="text-xs text-slate-400 dark:text-slate-500">{macrosPorTipo[tipo].length} macroproceso{macrosPorTipo[tipo].length > 1 ? 's' : ''}</span>
-                  </div>
+                <div className="w-full flex flex-col items-center gap-8">
+                  {/* ESTRATÉGICOS */}
+                  {macrosPorTipo['estrategico'] && (
+                    <div className="w-full flex flex-col items-center relative">
+                      <span className="badge badge-violet mb-4 px-4 py-1 text-xs font-bold uppercase tracking-widest shadow-sm">Procesos Estratégicos</span>
+                      <div className="flex justify-center gap-4 flex-wrap">
+                        {macrosPorTipo['estrategico'].map(m => renderMacroCard(m, TIPO_META.estrategico))}
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {macrosPorTipo[tipo].map(m => {
-                      const procs = procesosDeMacro(m.id);
-                      return (
-                        <div key={m.id} className={`card overflow-hidden border-l-4 ${meta.border}`}>
-                          {/* Header del macroproceso */}
-                          <div className={`${meta.header} px-4 py-3`}>
-                            <div className="flex items-center justify-between">
-                              <span className="font-mono text-xs text-white/70">{m.codigo}</span>
-                              <span className="text-xs text-white/80 bg-white/20 rounded-full px-2 py-0.5">
-                                {procs.length} proc.
-                              </span>
-                            </div>
-                            <p className="font-semibold text-white mt-0.5 text-sm leading-tight">{m.nombre}</p>
-                            {m.descripcion && <p className="text-white/70 text-xs mt-1 line-clamp-1">{m.descripcion}</p>}
-                          </div>
+                  {/* FLECHAS DESCENDENTES */}
+                  {(macrosPorTipo['estrategico'] && macrosPorTipo['misional']) && (
+                    <div className="h-8 w-px bg-slate-300 dark:bg-slate-600 relative">
+                      <div className="absolute -bottom-1 -left-1.5 w-3 h-3 border-r-2 border-b-2 border-slate-300 dark:border-slate-600 transform rotate-45" />
+                    </div>
+                  )}
 
-                          {/* Chips de procesos */}
-                          <div className={`${meta.bg} p-3`}>
-                            {procs.length === 0 ? (
-                              <p className="text-xs text-slate-400 dark:text-slate-500 italic text-center py-1">Sin procesos asociados</p>
-                            ) : (
-                              <div className="flex flex-wrap gap-1.5">
-                                {procs.map(p => (
-                                  <button
-                                    key={p.id}
-                                    onClick={() => { setVistaTab('tabla'); verDetalle(p); }}
-                                    className={`text-xs px-2.5 py-1 rounded-full font-medium transition-all ${meta.chip}`}
-                                    title={p.objetivo || p.nombre}
-                                  >
-                                    {p.codigo}
-                                    <ChevronRight className="w-3 h-3 inline ml-0.5 opacity-60" />
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {/* MISIONALES (Azul Superior) */}
+                  {macrosPorTipo['misional'] && (
+                    <div className="w-full flex flex-col items-center relative z-10">
+                      <span className="badge badge-blue mb-4 px-4 py-1 text-xs font-black uppercase tracking-widest shadow-sm ring-2 ring-blue-500/20">Procesos Misionales</span>
+                      <div className="flex justify-center gap-6 flex-wrap">
+                        {macrosPorTipo['misional'].map(m => renderMacroCard(m, TIPO_META.misional, true))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FLECHAS ASCENDENTES */}
+                  {(macrosPorTipo['apoyo'] && macrosPorTipo['misional']) && (
+                    <div className="h-8 w-px bg-slate-300 dark:bg-slate-600 relative">
+                      <div className="absolute -top-1 -left-1.5 w-3 h-3 border-l-2 border-t-2 border-slate-300 dark:border-slate-600 transform rotate-45" />
+                    </div>
+                  )}
+
+                  {/* APOYO */}
+                  {macrosPorTipo['apoyo'] && (
+                    <div className="w-full flex flex-col items-center relative">
+                      <span className="badge badge-yellow mb-4 px-4 py-1 text-xs font-bold uppercase tracking-widest shadow-sm">Procesos de Soporte</span>
+                      <div className="flex justify-center gap-4 flex-wrap max-w-[1200px]">
+                        {macrosPorTipo['apoyo'].map(m => renderMacroCard(m, TIPO_META.apoyo))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
-            })}
-            {Object.keys(macrosPorTipo).length === 0 && (
-              <div className="card p-12 text-center text-slate-400 dark:text-slate-500 text-sm">
-                No hay macroprocesos registrados. Crea el primero.
-              </div>
-            )}
+            })()}
           </div>
         )}
 
@@ -297,16 +325,21 @@ export default function ProcesosPage() {
                   const meta = TIPO_META[tipo];
                   return (
                     <div key={p.id} onClick={() => verDetalle(p)}
-                      className={`p-4 cursor-pointer hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors flex items-start justify-between gap-3 ${procesoSel?.id === p.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-600' : ''}`}>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          {meta && <span className="text-[10px]">{meta.icon}</span>}
-                          <p className="font-medium text-slate-800 dark:text-slate-200 text-sm truncate">{p.codigo} — {p.nombre}</p>
+                      className={`cursor-pointer transition-colors border-l-4 ${meta ? meta.border : 'border-slate-200'} ${procesoSel?.id === p.id ? (meta ? meta.bg : 'bg-slate-50 dark:bg-slate-800/30') : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'} flex flex-col mb-1 last:mb-0`}>
+                      
+                      <div className={`${meta ? meta.header : 'bg-slate-200 dark:bg-slate-700'} px-4 py-1.5 flex items-center justify-between`}>
+                        <div className="flex items-center gap-1.5 text-white">
+                          {meta && <span className="text-[10px] drop-shadow-md">{meta.icon}</span>}
+                          <p className="font-semibold text-xs tracking-wider drop-shadow-md">{p.codigo} — {meta ? meta.label : 'Sin Tipo'}</p>
                         </div>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">{p.objetivo || 'Sin objetivo'}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{p.macroproceso_nombre || 'Sin macroproceso'}</p>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${p.estado === 'activo' ? 'bg-green-500/20 text-green-50' : 'bg-yellow-500/20 text-yellow-50'}`}>{p.estado}</span>
                       </div>
-                      <span className={`badge shrink-0 ${p.estado === 'activo' ? 'badge-green' : 'badge-yellow'}`}>{p.estado}</span>
+
+                      <div className="p-4 min-w-0 flex-1">
+                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{p.nombre}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2">{p.objetivo || 'Sin objetivo'}</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 font-medium uppercase tracking-wide">Macro: {p.macroproceso_nombre || 'Sin macroproceso'}</p>
+                      </div>
                     </div>
                   );
                 })}
@@ -335,14 +368,17 @@ export default function ProcesosPage() {
                       </div>
                     </div>
 
-                    {/* Sub-tabs: Actividades | Documentos */}
-                    <div className="flex border-b border-slate-100 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50">
+                    {/* Sub-tabs: Actividades | Documentos | Indicadores | Riesgos | Auditorías */}
+                    <div className="flex border-b border-slate-100 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 overflow-x-auto hide-scrollbar">
                       {[
                         { key: 'actividades', label: `Actividades (${actividades.length})` },
                         { key: 'documentos',  label: `Documentos (${documentos.length})` },
+                        { key: 'indicadores', label: `Indicadores (${indicadores.length})` },
+                        { key: 'riesgos',     label: `Riesgos (${riesgos.length})` },
+                        { key: 'auditorias',  label: `Auditorías (${auditorias.length})` },
                       ].map(({ key, label }) => (
                         <button key={key} onClick={() => setPanelTab(key)}
-                          className={`px-5 py-2.5 text-xs font-semibold transition-colors ${panelTab === key ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>
+                          className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${panelTab === key ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>
                           {label}
                         </button>
                       ))}
@@ -451,6 +487,89 @@ export default function ProcesosPage() {
                               <div className="flex items-center gap-2 shrink-0">
                                 <span className="text-[10px] text-slate-400 dark:text-slate-500">v{d.version_actual}</span>
                                 <span className={`badge text-[10px] px-2 py-0.5 ${DOC_ESTADO_COLOR[d.estado] || 'badge-gray'}`}>{d.estado}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* ── Panel Indicadores ── */}
+                  {panelTab === 'indicadores' && (
+                    <div className="card overflow-hidden">
+                      <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Indicadores del Proceso</span>
+                      </div>
+                      {indicadores.length === 0 ? (
+                        <p className="p-8 text-center text-slate-400 dark:text-slate-500 text-sm">No hay indicadores asociados a este proceso</p>
+                      ) : (
+                        <div className="divide-y divide-slate-50 dark:divide-slate-700">
+                          {indicadores.map(i => (
+                            <div key={i.id} className="p-4 hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{i.codigo}</span>
+                                <span className="badge badge-blue">{i.tipo}</span>
+                              </div>
+                              <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{i.nombre}</p>
+                              <p className="text-xs text-slate-500 mt-1"><span className="font-semibold text-slate-600 dark:text-slate-400">Meta:</span> {i.meta}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Panel Riesgos ── */}
+                  {panelTab === 'riesgos' && (
+                    <div className="card overflow-hidden">
+                      <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Matriz de Riesgos</span>
+                      </div>
+                      {riesgos.length === 0 ? (
+                        <p className="p-8 text-center text-slate-400 dark:text-slate-500 text-sm">No hay riesgos identificados</p>
+                      ) : (
+                        <div className="divide-y divide-slate-50 dark:divide-slate-700">
+                          {riesgos.map(r => {
+                            const nivel = r.probabilidad * r.impacto;
+                            const color = nivel > 15 ? 'badge-red' : nivel > 8 ? 'badge-yellow' : 'badge-green';
+                            return (
+                              <div key={r.id} className="p-4 hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{r.codigo}</span>
+                                  <span className={`badge ${color}`}>Nivel: {nivel}</span>
+                                </div>
+                                <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{r.nombre}</p>
+                                <p className="text-xs text-slate-500 capitalize mt-1">{r.categoria} · P:{r.probabilidad} x I:{r.impacto}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Panel Auditorías ── */}
+                  {panelTab === 'auditorias' && (
+                    <div className="card overflow-hidden">
+                      <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Hallazgos de Auditoría</span>
+                      </div>
+                      {auditorias.length === 0 ? (
+                        <p className="p-8 text-center text-slate-400 dark:text-slate-500 text-sm">No hay hallazgos registrados</p>
+                      ) : (
+                        <div className="divide-y divide-slate-50 dark:divide-slate-700">
+                          {auditorias.map(h => (
+                            <div key={h.id} className="p-4 hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className={`badge ${h.tipo === 'no_conformidad' ? 'badge-red' : h.tipo === 'observacion' ? 'badge-yellow' : 'badge-green'}`}>
+                                  {h.tipo.replace('_', ' ')}
+                                </span>
+                                <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{h.plan_codigo}</span>
+                              </div>
+                              <p className="text-sm text-slate-700 dark:text-slate-300 mb-2 leading-relaxed">{h.descripcion}</p>
+                              <div className="flex gap-2">
+                                <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-500 font-semibold tracking-wide">Gravedad: {h.gravedad}</span>
+                                <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-500 font-semibold tracking-wide">Estado: {h.estado}</span>
                               </div>
                             </div>
                           ))}

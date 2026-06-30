@@ -464,26 +464,40 @@ INSERT INTO usuarios (codigo, nombres, apellidos, correo, contrasena_hash, rol, 
 
 -- Macroprocesos
 INSERT INTO macroprocesos (codigo, nombre, descripcion, tipo) VALUES
-('MP-001', 'Gestión Estratégica', 'Procesos de planeación y dirección estratégica', 'estrategico'),
-('MP-002', 'Gestión Académica', 'Procesos misionales de formación académica', 'misional'),
-('MP-003', 'Gestión Administrativo-Financiera', 'Procesos de apoyo administrativo y financiero', 'apoyo'),
-('MP-004', 'Autoevaluación Institucional', 'Procesos de evaluación y mejora continua', 'evaluacion'),
-('MP-005', 'Investigación y Extensión', 'Procesos de investigación y vinculación social', 'misional');
+('E01', 'Gobierno de la Universidad', 'Establecimiento de políticas y lineamientos.', 'estrategico'),
+('E02', 'Gestión Integrada para la Mejora', 'Administración del SIG y mejora continua.', 'estrategico'),
+('E03', 'Supervisión y Control', 'Vigilancia ética, legal y auditoría.', 'estrategico'),
+('E04', 'Gestión de la Información y Comunicación', 'Gestión de la imagen, transparencia y difusión.', 'estrategico'),
+('E05', 'Relaciones Interinstitucionales', 'Internacionalización y convenios.', 'estrategico'),
+('E06', 'Dirección Estratégica', 'Planificación prospectiva y presupuesto.', 'estrategico'),
+('M01', 'Formación Integral', 'Desarrollo del proceso enseñanza-aprendizaje.', 'misional'),
+('M02', 'Investigación, Innovación y Desarrollo', 'Creación de conocimiento y transferencia.', 'misional'),
+('M03', 'Responsabilidad Social Universitaria (RSU)', 'Intervención y vinculación con la comunidad.', 'misional'),
+('A01', 'Gestión de Infraestructura', 'Provisión y construcción de espacios físicos.', 'apoyo'),
+('A02', 'Gestión de Recursos Humanos', 'Administración del talento y SST.', 'apoyo'),
+('A03', 'Gestión del Bienestar Universitario', 'Soporte integral (salud, psicología, deporte).', 'apoyo'),
+('A04', 'Gestión de Logística y Control Patrimonial', 'Cadena de suministro y salvaguarda de bienes.', 'apoyo'),
+('A05', 'Gestión de Mantenimiento y Transporte', 'Sostenimiento operativo y movilidad.', 'apoyo'),
+('A06', 'Gestión de Tecnologías Digitales', 'Soporte de TI y transformación digital.', 'apoyo'),
+('A07', 'Gestión de Asuntos Jurídicos y Legales', 'Asesoría y defensa legal institucional.', 'apoyo'),
+('A08', 'Gestión de Centros de Información', 'Administración de bibliotecas y repositorios.', 'apoyo'),
+('A09', 'Gestión Financiera', 'Contabilidad, tesorería y ejecución del gasto.', 'apoyo'),
+('A10', 'Gestión de Secretaría General', 'Fedatario, trámite documentario y grados.', 'apoyo');
 
 -- Procesos
 INSERT INTO procesos (macroproceso_id, codigo, nombre, objetivo, alcance, estado)
 SELECT mp.id, v.codigo, v.nombre, v.objetivo, v.alcance, v.estado FROM
 (VALUES
-('MP-001', 'PROC-001', 'Planificación Estratégica', 'Definir la dirección estratégica y metas de la universidad', 'Todas las facultades', 'activo'),
-('MP-001', 'PROC-002', 'Asignación de Recursos', 'Distribuir presupuesto de forma equitativa', 'Rectorado y facultades', 'activo'),
-('MP-002', 'PROC-003', 'Diseño Curricular', 'Diseñar y actualizar planes académicos de calidad', 'Todas las escuelas', 'activo'),
-('MP-002', 'PROC-004', 'Admisión de Estudiantes', 'Seleccionar estudiantes según criterios de calidad', 'Admisión', 'activo'),
-('MP-002', 'PROC-005', 'Docencia y Evaluación', 'Impartir docencia de calidad y evaluar aprendizajes', 'Todos los docentes', 'activo'),
-('MP-003', 'PROC-006', 'Gestión de RRHH', 'Administrar recursos humanos de la institución', 'Toda la universidad', 'activo'),
-('MP-003', 'PROC-007', 'Adquisiciones', 'Procurar bienes y servicios de forma transparente', 'Área administrativa', 'activo'),
-('MP-003', 'PROC-008', 'Gestión Financiera', 'Administrar ingresos y egresos institucionales', 'Área financiera', 'activo'),
-('MP-004', 'PROC-009', 'Evaluación Institucional', 'Evaluar el desempeño de todas las áreas', 'Todas las áreas', 'activo'),
-('MP-005', 'PROC-010', 'Investigación Científica', 'Fomentar y coordinar investigación científica', 'Investigadores', 'activo')
+('E06', 'PROC-001', 'Planificación Estratégica', 'Definir la dirección estratégica y metas de la universidad', 'Todas las facultades', 'activo'),
+('A09', 'PROC-002', 'Asignación de Recursos', 'Distribuir presupuesto de forma equitativa', 'Rectorado y facultades', 'activo'),
+('M01', 'PROC-003', 'Diseño Curricular', 'Diseñar y actualizar planes académicos de calidad', 'Todas las escuelas', 'activo'),
+('M01', 'PROC-004', 'Admisión de Estudiantes', 'Seleccionar estudiantes según criterios de calidad', 'Admisión', 'activo'),
+('M01', 'PROC-005', 'Docencia y Evaluación', 'Impartir docencia de calidad y evaluar aprendizajes', 'Todos los docentes', 'activo'),
+('A02', 'PROC-006', 'Gestión de RRHH', 'Administrar recursos humanos de la institución', 'Toda la universidad', 'activo'),
+('A04', 'PROC-007', 'Adquisiciones', 'Procurar bienes y servicios de forma transparente', 'Área administrativa', 'activo'),
+('A09', 'PROC-008', 'Gestión Financiera', 'Administrar ingresos y egresos institucionales', 'Área financiera', 'activo'),
+('E02', 'PROC-009', 'Evaluación Institucional', 'Evaluar el desempeño de todas las áreas', 'Todas las áreas', 'activo'),
+('M02', 'PROC-010', 'Investigación Científica', 'Fomentar y coordinar investigación científica', 'Investigadores', 'activo')
 ) v(mp_codigo, codigo, nombre, objetivo, alcance, estado)
 JOIN macroprocesos mp ON mp.codigo = v.mp_codigo;
 

@@ -140,3 +140,33 @@ export const asociarDocumento = async (req, res) => {
     res.json({ mensaje: 'Documento asociado correctamente', documento: rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
+
+// GET /procesos/:id/relaciones
+export const obtenerRelacionesProceso = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Indicadores
+    const indRes = await query(`SELECT id, codigo, nombre, tipo, estado, meta FROM indicadores WHERE proceso_id = $1`, [id]);
+    
+    // Riesgos
+    const riesRes = await query(`SELECT id, codigo, nombre, categoria, probabilidad, impacto, estado FROM riesgos WHERE proceso_id = $1`, [id]);
+    
+    // Auditorías (Hallazgos vinculados)
+    const hallazRes = await query(`
+      SELECT h.id, h.tipo, h.descripcion, h.gravedad, h.estado, 
+             p.codigo as plan_codigo, p.nombre as plan_nombre
+      FROM hallazgos h
+      JOIN planes_auditoria p ON h.plan_id = p.id
+      WHERE h.area_proceso_id = $1
+    `, [id]);
+    
+    res.json({
+      indicadores: indRes.rows,
+      riesgos: riesRes.rows,
+      auditorias: hallazRes.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

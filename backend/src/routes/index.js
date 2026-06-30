@@ -46,6 +46,7 @@ r.post('/procesos', verificarToken, verificarRol(...ROL_GESTION), proc.crearProc
 r.put('/procesos/:id', verificarToken, verificarRol(...ROL_GESTION), proc.actualizarProceso);
 r.get('/procesos/:proceso_id/actividades', verificarToken, proc.listarActividades);
 r.get('/procesos/:id/documentos', verificarToken, proc.listarDocumentosProceso);
+r.get('/procesos/:id/relaciones', verificarToken, proc.obtenerRelacionesProceso);
 r.post('/procesos/:id/asociar-documento', verificarToken, verificarRol(...ROL_GESTION), proc.asociarDocumento);
 r.post('/actividades', verificarToken, verificarRol(...ROL_GESTION), proc.crearActividad);
 
