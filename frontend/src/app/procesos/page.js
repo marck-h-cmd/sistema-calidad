@@ -225,82 +225,94 @@ export default function ProcesosPage() {
             
             {/* Función Helper para pintar las tarjetas */}
             {(() => {
-              const renderMacroCard = (m, meta, isMisional = false) => {
+              const renderMacroCard = (m, meta, isMisional = false, index = 0, total = 1) => {
                 const procs = procesosDeMacro(m.id);
                 return (
-                  <div key={m.id} className={`card overflow-hidden border-t-4 shadow-md ${isMisional ? 'shadow-blue-500/20' : ''} ${meta.border} w-72 flex shrink-0 flex-col`}>
-                    <div className={`${meta.header} px-4 py-3 flex-1`}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs text-white/70">{m.codigo}</span>
-                        <span className="text-[10px] text-white/90 bg-black/20 rounded-full px-2 py-0.5">{procs.length} proc.</span>
-                      </div>
-                      <p className={`font-bold text-white mt-1 leading-tight ${isMisional ? 'text-base' : 'text-sm'}`}>{m.nombre}</p>
-                    </div>
-                    <div className={`${meta.bg} p-3 flex flex-wrap gap-1.5 min-h-[60px]`}>
-                      {procs.length === 0 ? (
-                        <p className="text-xs text-slate-400 dark:text-slate-500 italic m-auto">Sin procesos</p>
-                      ) : (
-                        procs.map(p => (
-                          <button
-                            key={p.id}
-                            onClick={() => { setVistaTab('tabla'); verDetalle(p); }}
-                            className={`text-xs px-2 py-1 rounded font-medium transition-all shadow-sm ${meta.chip}`}
-                            title={p.objetivo || p.nombre}
-                          >
-                            {p.codigo}
-                          </button>
-                        ))
+                  <div key={m.id} className="flex items-center">
+                    <div 
+                      className={`bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm w-56 shrink-0 flex flex-col items-center text-center transition-all border border-slate-100 dark:border-slate-700 ${isMisional ? 'min-h-[180px]' : 'min-h-[120px]'}`}
+                    >
+                      <h3 className={`font-bold text-sm mb-3 ${meta.textColor || 'text-slate-700 dark:text-slate-200'} max-w-full leading-tight`}>{m.nombre}</h3>
+                      {procs.length > 0 && (
+                        <div className="flex flex-col gap-2 mt-auto items-center w-full">
+                          {procs.map(p => (
+                            <button 
+                              key={p.id} 
+                              onClick={() => { setVistaTab('tabla'); verDetalle(p); }}
+                              className={`text-[10px] sm:text-xs px-2 py-1.5 rounded-lg font-semibold transition-all shadow-sm w-full break-words ${meta.chip}`}
+                            >
+                              {p.nombre}
+                            </button>
+                          ))}
+                        </div>
                       )}
+                    </div>
+                    {isMisional && index < total - 1 && (
+                      <div className="mx-2 text-blue-500/40 dark:text-blue-400/40">
+                        <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
+                          <path d="M4 11h12V8l6 4-6 4v-3H4v-2z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              };
+
+              const renderContainer = (title, tipo, bgClass, textClass, isMisional = false) => {
+                const macros = macrosPorTipo[tipo];
+                if (!macros) return null;
+                return (
+                  <div className="relative w-full max-w-5xl z-10">
+                    {/* Tab Header */}
+                    <div className={`absolute -top-8 left-0 ${bgClass} px-6 py-2 rounded-t-xl inline-block shadow-sm`}>
+                      <span className={`text-xs font-black uppercase tracking-wider ${textClass}`}>{title}</span>
+                    </div>
+                    {/* Container Body */}
+                    <div className={`${bgClass} rounded-b-2xl rounded-tr-2xl p-6 shadow-md`}>
+                      <div className="flex justify-center flex-wrap md:flex-nowrap gap-4">
+                        {macros.map((m, i) => renderMacroCard(m, TIPO_META[tipo], isMisional, i, macros.length))}
+                      </div>
                     </div>
                   </div>
                 );
               };
 
               return (
-                <div className="w-full flex flex-col items-center gap-8">
+                <div className="w-full flex flex-col items-center gap-16 pt-16 pb-10 bg-slate-50 dark:bg-[#232323] rounded-[2rem] relative px-4 md:px-16 shadow-lg dark:shadow-2xl overflow-hidden min-h-[600px] border border-slate-200 dark:border-slate-800">
+                  
+                  {/* Título Central Opcional */}
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2">
+                     <h2 className="text-slate-800 dark:text-white font-black text-2xl md:text-4xl tracking-widest uppercase drop-shadow-sm dark:drop-shadow-lg">Mapa de Procesos</h2>
+                  </div>
+
                   {/* ESTRATÉGICOS */}
-                  {macrosPorTipo['estrategico'] && (
-                    <div className="w-full flex flex-col items-center relative">
-                      <span className="badge badge-violet mb-4 px-4 py-1 text-xs font-bold uppercase tracking-widest shadow-sm">Procesos Estratégicos</span>
-                      <div className="flex justify-center gap-4 flex-wrap">
-                        {macrosPorTipo['estrategico'].map(m => renderMacroCard(m, TIPO_META.estrategico))}
-                      </div>
-                    </div>
-                  )}
+                  {renderContainer("Procesos Estratégicos", 'estrategico', 'bg-violet-100/50 dark:bg-violet-900/20', 'text-violet-800 dark:text-violet-300')}
 
-                  {/* FLECHAS DESCENDENTES */}
+                  {/* CONECTORES (Líneas punteadas) */}
                   {(macrosPorTipo['estrategico'] && macrosPorTipo['misional']) && (
-                    <div className="h-8 w-px bg-slate-300 dark:bg-slate-600 relative">
-                      <div className="absolute -bottom-1 -left-1.5 w-3 h-3 border-r-2 border-b-2 border-slate-300 dark:border-slate-600 transform rotate-45" />
+                    <div className="absolute top-[32%] flex w-full max-w-3xl justify-around z-0 opacity-60">
+                       <div className="w-px h-24 border-l-2 border-dashed border-slate-300 dark:border-white"></div>
+                       <div className="w-px h-24 border-l-2 border-dashed border-slate-300 dark:border-white"></div>
+                       <div className="w-px h-24 border-l-2 border-dashed border-slate-300 dark:border-white"></div>
                     </div>
                   )}
 
-                  {/* MISIONALES (Azul Superior) */}
-                  {macrosPorTipo['misional'] && (
-                    <div className="w-full flex flex-col items-center relative z-10">
-                      <span className="badge badge-blue mb-4 px-4 py-1 text-xs font-black uppercase tracking-widest shadow-sm ring-2 ring-blue-500/20">Procesos Misionales</span>
-                      <div className="flex justify-center gap-6 flex-wrap">
-                        {macrosPorTipo['misional'].map(m => renderMacroCard(m, TIPO_META.misional, true))}
-                      </div>
-                    </div>
-                  )}
+                  {/* MISIONALES */}
+                  {renderContainer("Procesos Misionales", 'misional', 'bg-blue-100/50 dark:bg-blue-900/20', 'text-blue-800 dark:text-blue-300', true)}
 
-                  {/* FLECHAS ASCENDENTES */}
+                  {/* CONECTORES (Líneas punteadas) */}
                   {(macrosPorTipo['apoyo'] && macrosPorTipo['misional']) && (
-                    <div className="h-8 w-px bg-slate-300 dark:bg-slate-600 relative">
-                      <div className="absolute -top-1 -left-1.5 w-3 h-3 border-l-2 border-t-2 border-slate-300 dark:border-slate-600 transform rotate-45" />
+                    <div className="absolute top-[68%] flex w-full max-w-3xl justify-around z-0 opacity-60">
+                       <div className="w-px h-24 border-l-2 border-dashed border-slate-300 dark:border-white"></div>
+                       <div className="w-px h-24 border-l-2 border-dashed border-slate-300 dark:border-white"></div>
+                       <div className="w-px h-24 border-l-2 border-dashed border-slate-300 dark:border-white"></div>
+                       <div className="w-px h-24 border-l-2 border-dashed border-slate-300 dark:border-white"></div>
                     </div>
                   )}
 
                   {/* APOYO */}
-                  {macrosPorTipo['apoyo'] && (
-                    <div className="w-full flex flex-col items-center relative">
-                      <span className="badge badge-yellow mb-4 px-4 py-1 text-xs font-bold uppercase tracking-widest shadow-sm">Procesos de Soporte</span>
-                      <div className="flex justify-center gap-4 flex-wrap max-w-[1200px]">
-                        {macrosPorTipo['apoyo'].map(m => renderMacroCard(m, TIPO_META.apoyo))}
-                      </div>
-                    </div>
-                  )}
+                  {renderContainer("Procesos de Soporte", 'apoyo', 'bg-amber-100/50 dark:bg-amber-900/20', 'text-amber-800 dark:text-amber-300')}
+
                 </div>
               );
             })()}
